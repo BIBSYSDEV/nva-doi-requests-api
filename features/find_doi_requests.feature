@@ -1,6 +1,6 @@
 Feature: Find DOI requests
 
-  Scenario: A Creator finds DOI Requests
+  Scenario Outline: A Creator finds DOI Requests
     Given A Creator has Publications with DOI Requests
     When they set the Accept header to "application/json"
     And they set the Authentication header to a Bearer token with their credentials
@@ -9,6 +9,15 @@ Feature: Find DOI requests
     And they see that the response Content-Type header is "application/json"
     And they see that the response body is a DoiRequestsResponse
     And they see that the response body has a list of DOI Requests
+    And they see that each DOI Request has a property <Property>
+
+    Examples:
+      | Property              |
+      | doiRequestStatus      |
+      | doiRequestDate        |
+      | publicationIdentifier |
+      | publicationTitle      |
+      | publicationCreator    |
 
   Scenario: A Curator finds DOI Requests
     Given A Curator belongs to a Publisher that has Publications with DOI Requests
