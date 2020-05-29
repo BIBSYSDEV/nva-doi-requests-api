@@ -1,0 +1,2 @@
+rootProject.name = 'nva-doi-requests-api'
+include 'find-doi-requests'
