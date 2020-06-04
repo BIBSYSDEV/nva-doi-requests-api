@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 public class DoiRequestSummaryTest {
 
     @Test
-    public void test() throws Exception {
+    public void canMapDoiRequestSummary() throws Exception {
         Publication publication = PublicationGenerator.getPublication();
 
         DoiRequestSummary doiRequestSummary = JsonUtils.objectMapper.readValue(
@@ -19,6 +19,11 @@ public class DoiRequestSummaryTest {
             DoiRequestSummary.class);
 
         assertNotNull(doiRequestSummary);
+        assertNotNull(doiRequestSummary.getPublicationOwner());
+        assertNotNull(doiRequestSummary.getDoiRequestDate());
+        assertNotNull(doiRequestSummary.getDoiRequestStatus());
+        assertNotNull(doiRequestSummary.getPublicationIdentifier());
+        assertNotNull(doiRequestSummary.getPublicationTitle());
     }
 
 }
