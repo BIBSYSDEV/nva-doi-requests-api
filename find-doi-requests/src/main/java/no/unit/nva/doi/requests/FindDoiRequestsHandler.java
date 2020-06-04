@@ -11,7 +11,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonPointer;
 import java.net.URI;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
@@ -96,7 +96,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
             doiRequests = doiRequestsService.findDoiRequestsByStatus(
                 publisher, REQUESTED);
         } else {
-            doiRequests = new ArrayList<>();
+            doiRequests = Collections.emptyList();
         }
         return doiRequests;
     }
