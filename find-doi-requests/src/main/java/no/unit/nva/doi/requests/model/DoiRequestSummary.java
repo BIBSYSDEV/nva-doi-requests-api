@@ -5,10 +5,12 @@ import static com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.EntityDescription;
+import nva.commons.utils.JacocoGenerated;
 
 public class DoiRequestSummary {
 
@@ -59,4 +61,27 @@ public class DoiRequestSummary {
         return publicationOwner;
     }
 
+    @Override
+    @JacocoGenerated
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DoiRequestSummary that = (DoiRequestSummary) o;
+        return doiRequestStatus == that.doiRequestStatus
+            && Objects.equals(doiRequestDate, that.doiRequestDate)
+            && Objects.equals(publicationIdentifier, that.publicationIdentifier)
+            && Objects.equals(publicationTitle, that.publicationTitle)
+            && Objects.equals(publicationOwner, that.publicationOwner);
+    }
+
+    @Override
+    @JacocoGenerated
+    public int hashCode() {
+        return Objects.hash(doiRequestStatus, doiRequestDate, publicationIdentifier, publicationTitle,
+            publicationOwner);
+    }
 }

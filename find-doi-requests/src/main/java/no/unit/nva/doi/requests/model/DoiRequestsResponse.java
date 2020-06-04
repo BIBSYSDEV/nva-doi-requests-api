@@ -16,4 +16,6 @@ public class DoiRequestsResponse extends ArrayList<DoiRequestSummary> {
         response.addAll(doiRequests);
         return response;
     }
+
+
 }

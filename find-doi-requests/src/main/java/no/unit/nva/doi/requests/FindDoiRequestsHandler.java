@@ -23,6 +23,7 @@ import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
+import nva.commons.utils.JacocoGenerated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     /**
      * Default constructor for FindDoiRequestsHandler.
      */
+    @JacocoGenerated
     public FindDoiRequestsHandler() {
         this(new DynamoDBDoiRequestsService(
                 AmazonDynamoDBClientBuilder.defaultClient(),
