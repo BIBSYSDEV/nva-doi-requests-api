@@ -130,7 +130,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: find-doi-requests
-      Handler: no.unit.nva.doi.requests.FindDoiRequests::handleRequest
+      Handler: no.unit.nva.doi.requests.FindDoiRequestsHandler::handleRequest
       Runtime: java11
       MemorySize: 1400
       Environment:
