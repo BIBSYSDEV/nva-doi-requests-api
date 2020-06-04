@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS
+
+  Sample SAM Template for AWS
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: NvaDoiRequestsApi
+    Description: NVA Doi Requests API
+    Author: Unit
+    SpdxLicenseId: MIT
+    LicenseUrl: LICENSE
+    Labels: ['${GIT_REPO}', '${CODEBUILD_RESOLVED_SOURCE_VERSION}', '@${BUILD_TIMESTAMP}']
+
+Globals:
+  Function:
+    Timeout: 20
+  Api:
+    Cors:
+      AllowMethods: "'POST, PUT, GET,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
+Parameters:
+  CognitoAuthorizerArn:
+    Type: String
+    Description: Reference to Cognito UserPool for the stage
+  CustomDomain:
+    Type: String
+    Description: Custom API to connect this lambda to
+  CustomDomainBasePath:
+    Type: String
+    Description: Base path mapping in CustomDomain
+  DoiRequestsTableName:
+    Type: String
+    Description: Reference to table for DOI Requests
+  DoiRequestsIndexName:
+    Type: String
+    Description: Reference to index for DOI Requests
+
+Resources:
+  NvaDoiRequestsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      EndpointConfiguration: REGIONAL
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title: NVA DOI Requests API
+          version: '1.0'
+        paths:
+          /:
+            get:
+              summary: Find DOI Requests By Role
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              security:
+                - CognitoUserPool: []
+              parameters:
+                - in: query
+                  name: role
+                  type: string
+                  description: The role used to find DOI requests for.
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                responses: {}
+                httpMethod: POST
+                type: AWS_PROXY
+              responses:
+                '200':
+                  description: OK
+                  schema:
+                    type: list
+                    items:
+                      $ref: '#/definitions/DoiRequestSummary'
+                '400':
+                  description: Bad Request
+                  schema:
+                    $ref: '#/definitions/Problem'
+                '404':
+                  description: Not Found
+                  schema:
+                    $ref: '#/definitions/Problem'
+                '502':
+                  description: Bad Gateway
+                  schema:
+                    $ref: '#/definitions/Problem'
+        definitions:
+          DoiRequestSummary:
+            type: object
+            properties:
+              doiRequestStatus:
+                type: string
+              doiRequestDate:
+                type: string
+                format: date-time
+              publicationIdentifier:
+                type: string
+                format: uuid
+              publicationTitle:
+                type: string
+              publicationCreator:
+                type: string
+          Problem:
+            type: object
+            properties:
+              title:
+                type: string
+              status:
+                type: integer
+              detail:
+                type: string
+        securityDefinitions:
+          CognitoUserPool:
+            type: apiKey
+            name: Authorization
+            in: header
+            x-amazon-apigateway-authtype: cognito_user_pools
+            x-amazon-apigateway-authorizer:
+              type: cognito_user_pools
+              providerARNs:
+                - !Ref CognitoAuthorizerArn
+  NvaFindDoiRequestsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: find-doi-requests
+      Handler: no.unit.nva.doi.requests.FindDoiRequests::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DoiRequestsTableName
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: get
+            RestApiId: !Ref NvaDoiRequestsApi
+  NvaDoiRequestsPathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      BasePath: !Ref CustomDomainBasePath
+      DomainName: !Ref CustomDomain
+      RestApiId: !Ref NvaDoiRequestsApi
+      Stage: !Ref NvaDoiRequestsApi.Stage
