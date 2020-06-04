@@ -1,4 +1,4 @@
-package util;
+package no.unit.nva.doi.requests.util;
 
 import java.net.URI;
 import java.time.Instant;

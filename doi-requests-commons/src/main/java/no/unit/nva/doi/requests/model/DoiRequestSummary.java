@@ -1,9 +1,8 @@
 package no.unit.nva.doi.requests.model;
 
-import static com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,10 +28,10 @@ public class DoiRequestSummary {
      * @param entityDescription publication entityDescription
      */
     @JsonCreator
-    public DoiRequestSummary(@JsonProperty(value = "identifier", access = WRITE_ONLY) UUID identifier,
-                             @JsonProperty(value = "owner", access = WRITE_ONLY) String owner,
-                             @JsonProperty(value = "doiRequest", access = WRITE_ONLY) DoiRequest doiRequest,
-                             @JsonProperty(value = "entityDescription", access = WRITE_ONLY)
+    public DoiRequestSummary(@JsonProperty(value = "identifier", access = Access.WRITE_ONLY) UUID identifier,
+                             @JsonProperty(value = "owner", access = Access.WRITE_ONLY) String owner,
+                             @JsonProperty(value = "doiRequest", access = Access.WRITE_ONLY) DoiRequest doiRequest,
+                             @JsonProperty(value = "entityDescription", access = Access.WRITE_ONLY)
                                      EntityDescription entityDescription) {
         this.doiRequestStatus = doiRequest.getStatus();
         this.doiRequestDate = doiRequest.getDate();
