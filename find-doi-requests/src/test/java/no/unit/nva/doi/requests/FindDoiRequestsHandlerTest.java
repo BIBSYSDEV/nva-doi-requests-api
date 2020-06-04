@@ -48,8 +48,12 @@ public class FindDoiRequestsHandlerTest {
     private ByteArrayOutputStream outputStream;
     private Context context;
 
+    /**
+     * Set up environment for test.
+     *
+     */
     @BeforeEach
-    public void setUp() throws Exception {
+    public void setUp() {
         doiRequestsService = mock(DoiRequestsService.class);
         environment = mock(Environment.class);
         when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
