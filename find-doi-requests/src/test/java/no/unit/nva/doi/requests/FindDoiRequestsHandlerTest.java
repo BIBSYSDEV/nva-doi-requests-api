@@ -90,6 +90,33 @@ public class FindDoiRequestsHandlerTest {
     }
 
     @Test
+    public void handleRequestReturnsStatusOKOnValidUpperCaseCreatorRoleInput() throws Exception {
+        when(doiRequestsService.findDoiRequestsByStatusAndOwner(
+            any(URI.class), any(DoiRequestStatus.class), anyString()
+        )).thenReturn(new DoiRequestsResponse());
+
+        InputStream inputStream = new HandlerRequestBuilder<Void>(objectMapper)
+            .withHeaders(getRequestHeaders())
+            .withQueryParameters(Map.of(ROLE, CREATOR.toUpperCase()))
+            .withRequestContext(getRequestContext())
+            .build();
+
+        handler.handleRequest(inputStream, outputStream, context);
+
+        GatewayResponse<DoiRequestsResponse> actual = objectMapper.readValue(
+            outputStream.toByteArray(),
+            GatewayResponse.class);
+
+        GatewayResponse<DoiRequestsResponse> expected = new GatewayResponse<>(
+            new DoiRequestsResponse(),
+            TestHeaders.getResponseHeaders(),
+            HttpStatus.SC_OK
+        );
+
+        assertEquals(expected, actual);
+    }
+
+    @Test
     public void handleRequestReturnsStatusOKOnValidCuratorRoleInput() throws Exception {
         when(doiRequestsService.findDoiRequestsByStatusAndOwner(
             any(URI.class), any(DoiRequestStatus.class), anyString()

@@ -10,8 +10,10 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonPointer;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -36,6 +38,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
     public static final String CREATOR = "creator";
     public static final String CURATOR = "curator";
+    public static final String ROLES_SEPARATOR = ",";
 
     private DoiRequestsService doiRequestsService;
 
@@ -88,10 +91,10 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     private List<DoiRequestSummary> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
         throws ApiGatewayException {
         List<DoiRequestSummary> doiRequests;
-        if (requestedRole.equals(CREATOR)) {
+        if (requestedRole.equalsIgnoreCase(CREATOR)) {
             doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(
                 publisher, REQUESTED, user);
-        } else if (requestedRole.equals(CURATOR)) {
+        } else if (requestedRole.equalsIgnoreCase(CURATOR)) {
             doiRequests = doiRequestsService.findDoiRequestsByStatus(
                 publisher, REQUESTED);
         } else {
@@ -101,7 +104,11 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     }
 
     private void verifyRoles(String requestedRole, String assignedRoles) throws NotAuthorizedException {
-        if (!assignedRoles.contains(requestedRole)) {
+        Optional<String> foundRole = Arrays.stream(assignedRoles.split(ROLES_SEPARATOR))
+            .filter(role -> role.equalsIgnoreCase(requestedRole))
+            .findAny();
+
+        if (foundRole.isEmpty()) {
             logger.info(String.format("Role '%s' not found among roles '%s'", requestedRole, assignedRoles));
             throw new NotAuthorizedException("User is missing requested role: " + requestedRole);
         }
