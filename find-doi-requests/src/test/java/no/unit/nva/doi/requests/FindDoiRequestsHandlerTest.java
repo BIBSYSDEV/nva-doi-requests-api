@@ -17,7 +17,6 @@ import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequestStatus;
-import no.unit.nva.model.util.OrgNumberMapper;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import no.unit.nva.testutils.TestContext;
 import no.unit.nva.testutils.TestHeaders;
@@ -35,12 +34,13 @@ public class FindDoiRequestsHandlerTest {
     public static final String AUTHORIZER = "authorizer";
     public static final String CLAIMS = "claims";
     public static final String CUSTOM_FEIDE_ID = "custom:feideId";
-    public static final String CUSTOM_ORG_NUMBER = "custom:orgNumber";
+    public static final String CUSTOM_CUSTOMER_ID = "custom:customerId";
     public static final String CUSTOM_APPLICATION_ROLES = "custom:applicationRoles";
     public static final String JUNIT = "junit";
     public static final String CURATOR = "curator";
     public static final String INVALID_ROLE = "invalid_role";
     public static final String EDITOR = "editor";
+    public static final String SAMPLE_CUSTOMER_ID = "http://example.org/publisher/123";
 
     private DoiRequestsService doiRequestsService;
     private Environment environment;
@@ -209,7 +209,7 @@ public class FindDoiRequestsHandlerTest {
         return Map.of(AUTHORIZER, Map.of(
             CLAIMS, Map.of(
                 CUSTOM_FEIDE_ID, JUNIT,
-                CUSTOM_ORG_NUMBER, OrgNumberMapper.UNIT_ORG_NUMBER,
+                CUSTOM_CUSTOMER_ID, SAMPLE_CUSTOMER_ID,
                 CUSTOM_APPLICATION_ROLES, String.join(",", CREATOR, CURATOR, EDITOR)
             ))
         );

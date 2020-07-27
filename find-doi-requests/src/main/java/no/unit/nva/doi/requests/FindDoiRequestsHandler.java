@@ -1,7 +1,6 @@
 package no.unit.nva.doi.requests;
 
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
-import static no.unit.nva.model.util.OrgNumberMapper.toCristinId;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static nva.commons.utils.RequestUtils.getQueryParameter;
 import static nva.commons.utils.RequestUtils.getRequestContextParameter;
@@ -31,7 +30,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
 
     public static final String ROLE = "role";
     public static final JsonPointer FEIDE_ID = JsonPointer.compile("/authorizer/claims/custom:feideId");
-    public static final JsonPointer ORG_NUMBER = JsonPointer.compile("/authorizer/claims/custom:orgNumber");
+    public static final JsonPointer CUSTOMER_ID = JsonPointer.compile("/authorizer/claims/custom:customerId");
     public static final JsonPointer APPLICATION_ROLES = JsonPointer
         .compile("/authorizer/claims/custom:applicationRoles");
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
@@ -70,19 +69,19 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String user;
         String requestedRole;
         String assignedRoles;
-        String orgNumber;
+        String customerId;
         try {
             user = getRequestContextParameter(requestInfo, FEIDE_ID);
             requestedRole = getQueryParameter(requestInfo, ROLE);
             assignedRoles = getRequestContextParameter(requestInfo, APPLICATION_ROLES);
-            orgNumber = getRequestContextParameter(requestInfo, ORG_NUMBER);
+            customerId = getRequestContextParameter(requestInfo, CUSTOMER_ID);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
         }
 
         verifyRoles(requestedRole, assignedRoles);
 
-        List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, toCristinId(orgNumber));
+        List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, URI.create(customerId));
         return DoiRequestsResponse.of(doiRequests);
     }
 
