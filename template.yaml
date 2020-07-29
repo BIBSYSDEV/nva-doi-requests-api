@@ -160,7 +160,7 @@ Resources:
     Properties:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: '*'
-        gatewayresponse.header.Access-Control-Allow-Headers: Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+        gatewayresponse.header.Access-Control-Allow-Headers: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
       ResponseType: DEFAULT_4XX
       RestApiId: !Ref NvaDoiRequestsApi
   GatewayResponseDefault5XX:
@@ -168,6 +168,6 @@ Resources:
     Properties:
       ResponseParameters:
         gatewayresponse.header.Access-Control-Allow-Origin: '*'
-        gatewayresponse.header.Access-Control-Allow-Headers: Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
+        gatewayresponse.header.Access-Control-Allow-Headers: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'
       ResponseType: DEFAULT_5XX
       RestApiId: !Ref NvaDoiRequestsApi
