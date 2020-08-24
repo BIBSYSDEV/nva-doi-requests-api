@@ -1,3 +1,4 @@
 rootProject.name = 'nva-doi-requests-api'
 include 'doi-requests-commons'
 include 'find-doi-requests'
+include 'create-doi-request'
