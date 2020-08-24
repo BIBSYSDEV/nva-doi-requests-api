@@ -39,7 +39,6 @@ Parameters:
   DoiRequestsIndexName:
     Type: String
     Description: Reference to index for DOI Requests
-
 Resources:
   NvaDoiRequestsApi:
     Type: AWS::Serverless::Api
@@ -47,85 +46,92 @@ Resources:
       StageName: Prod
       EndpointConfiguration: REGIONAL
       DefinitionBody:
-        swagger: '2.0'
+        openapi: 3.0.4
         info:
           title: NVA DOI Requests API
-          version: '1.0'
+          description: NVA DOI Requests
         paths:
           /:
             get:
               summary: Find DOI Requests By Role
-              consumes:
-                - application/json
-              produces:
-                - application/json
               security:
                 - CognitoUserPool: []
               parameters:
                 - in: query
                   name: role
-                  type: string
                   description: The role used to find DOI requests for.
-              x-amazon-apigateway-integration:
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-                responses: {}
-                httpMethod: POST
-                type: AWS_PROXY
+                  schema:
+                    type: string
               responses:
                 '200':
                   description: OK
-                  schema:
-                    type: list
-                    items:
-                      $ref: '#/definitions/DoiRequestSummary'
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DoiRequestSummary'
                 '400':
                   description: Bad Request
-                  schema:
-                    $ref: '#/definitions/Problem'
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
                 '404':
                   description: Not Found
-                  schema:
-                    $ref: '#/definitions/Problem'
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
                 '502':
                   description: Bad Gateway
-                  schema:
-                    $ref: '#/definitions/Problem'
-        definitions:
-          DoiRequestSummary:
-            type: object
-            properties:
-              doiRequestStatus:
-                type: string
-              doiRequestDate:
-                type: string
-                format: date-time
-              publicationIdentifier:
-                type: string
-                format: uuid
-              publicationTitle:
-                type: string
-              publicationCreator:
-                type: string
-          Problem:
-            type: object
-            properties:
-              title:
-                type: string
-              status:
-                type: integer
-              detail:
-                type: string
-        securityDefinitions:
-          CognitoUserPool:
-            type: apiKey
-            name: Authorization
-            in: header
-            x-amazon-apigateway-authtype: cognito_user_pools
-            x-amazon-apigateway-authorizer:
-              type: cognito_user_pools
-              providerARNs:
-                - !Ref CognitoAuthorizerArn
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+            x-amazon-apigateway-integration:
+              uri:
+                Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+              responses: {}
+              httpMethod: POST
+              type: AWS_PROXY
+        components:
+          schemas:
+            DoiRequestSummary:
+              type: object
+              properties:
+                doiRequestStatus:
+                  type: string
+                doiRequestDate:
+                  type: string
+                  format: date-time
+                publicationIdentifier:
+                  type: string
+                  format: uuid
+                publicationTitle:
+                  type: string
+                publicationCreator:
+                  type: string
+            Problem:
+              type: object
+              properties:
+                title:
+                  type: string
+                status:
+                  type: integer
+                detail:
+                  type: string
+          securitySchemes:
+            CognitoUserPool:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: cognito_user_pools
+              x-amazon-apigateway-authorizer:
+                type: cognito_user_pools
+                providerARNs:
+                  - !Ref CognitoAuthorizerArn
+
   NvaFindDoiRequestsFunction:
     Type: AWS::Serverless::Function
     Properties:
