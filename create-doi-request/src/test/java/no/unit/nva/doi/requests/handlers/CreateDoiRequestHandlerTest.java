@@ -12,6 +12,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import nva.commons.handlers.GatewayResponse;
 import nva.commons.utils.Environment;
@@ -26,7 +27,7 @@ public class CreateDoiRequestHandlerTest {
     private static final String DEFAULT_PUBLICATION_ID = "SomePublicationId";
     private CreateDoiRequestHandler handler;
     private Context context;
-
+    private DoiRequestsService doiRequestsService;
 
     public CreateDoiRequestHandlerTest() {
         Environment environment = mockEnvironment();
@@ -60,6 +61,17 @@ public class CreateDoiRequestHandlerTest {
 
         GatewayResponse<Void> response = GatewayResponse.fromOutputStream(output);
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CREATED)));
+    }
+
+    @Test
+    public void handleRequestCreatesDoiRequest() throws IOException {
+        CreateDoiRequest doiRequest = requestWithoutPublicationId();
+        InputStream input = createRequest(doiRequest);
+        ByteArrayOutputStream output = outpuStream();
+        //        handler.handleRequest(input,output,context);
+
+        //        doiRequestsService.fetchDoiRequest(doiRequest.getPublicationId());
+
     }
 
     private Environment mockEnvironment() {

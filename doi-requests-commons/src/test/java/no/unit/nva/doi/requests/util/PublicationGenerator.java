@@ -23,7 +23,17 @@ public final class PublicationGenerator {
      *
      * @return  publication
      */
-    public static Publication getPublication() {
+    public static Publication getPublicationWithDoiRequest() {
+        return getPublicationWithoutDoiRequest().copy()
+            .withDoiRequest(new DoiRequest.Builder()
+                .withDate(Instant.now())
+                .withStatus(DoiRequestStatus.REQUESTED)
+                .build()
+            )
+            .build();
+    }
+
+    public static Publication getPublicationWithoutDoiRequest(){
         return new Publication.Builder()
             .withIdentifier(UUID.randomUUID())
             .withModifiedDate(Instant.now())
@@ -34,11 +44,6 @@ public final class PublicationGenerator {
             )
             .withEntityDescription(new EntityDescription.Builder()
                 .withMainTitle("Main title")
-                .build()
-            )
-            .withDoiRequest(new DoiRequest.Builder()
-                .withDate(Instant.now())
-                .withStatus(DoiRequestStatus.REQUESTED)
                 .build()
             )
             .build();
