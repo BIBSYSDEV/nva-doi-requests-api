@@ -46,11 +46,11 @@ Resources:
       StageName: Prod
       EndpointConfiguration: REGIONAL
       DefinitionBody:
-        openapi: 3.0.4
+        openapi: 3.0.3
         info:
           title: NVA DOI Requests API
           description: NVA DOI Requests
-          version: '1.0'
+          version: 1
         paths:
           /:
             get:
@@ -92,10 +92,46 @@ Resources:
                         $ref: '#/components/schemas/Problem'
               x-amazon-apigateway-integration:
                 uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
                 responses: {}
                 httpMethod: POST
                 type: AWS_PROXY
+          post:
+            summary: Create new Doi request
+            security:
+              - CognitoUserPool: []
+            requestBody:
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/CreateDoiRequest'
+            responses:
+              '201':
+                description: Created
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/DoiRequestSummary'
+              '400':
+                description: Bad Request
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Problem'
+              '404':
+                description: Not Found
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Problem'
+            x-amazon-apigateway-integration:
+              uri:
+                'Fn::Sub': >-
+                  arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+              responses: {}
+              httpMethod: POST
+              type: AWS_PROXY
         components:
           schemas:
             DoiRequestSummary:
@@ -112,6 +148,11 @@ Resources:
                 publicationTitle:
                   type: string
                 publicationCreator:
+                  type: string
+            CreateDoiRequest:
+              type: object
+              properties:
+                publicationId:
                   type: string
             Problem:
               type: object
@@ -132,7 +173,6 @@ Resources:
                 type: cognito_user_pools
                 providerARNs:
                   - !Ref CognitoAuthorizerArn
-
   NvaFindDoiRequestsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -154,6 +194,28 @@ Resources:
           Properties:
             Path: /
             Method: get
+            RestApiId: !Ref NvaDoiRequestsApi
+  NvaCreateDoiRequestHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: create-doi-request
+      Handler: no.unit.nva.doi.requests.handlers.CreateDoiRequestHandler::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DoiRequestsTableName
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
             RestApiId: !Ref NvaDoiRequestsApi
   NvaDoiRequestsPathMapping:
     Type: AWS::ApiGateway::BasePathMapping
