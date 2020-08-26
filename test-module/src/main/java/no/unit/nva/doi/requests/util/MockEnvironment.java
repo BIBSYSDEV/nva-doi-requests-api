@@ -12,6 +12,10 @@ public class MockEnvironment {
     public static final String ENV_VARIABLE_NOT_FOUND_ERROR = "Did not find env variable:";
     public static final String ALLOW_CORS = "*";
 
+    /**
+     *  Mock environment with all necessary table information.
+     * @return an Environment
+     */
     public static Environment mockEnvironment() {
         final Map<String, String> envVariables = Map
             .of(ALLOWED_ORIGIN_ENV, ALLOW_CORS,
