@@ -19,9 +19,14 @@ dependencies {
     api group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: awsSdkVersion
     api group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: awsSdkVersion
 
+    implementation (project(':doi-request-common-constants'))
     testImplementation('com.amazonaws:DynamoDBLocal:1.12.0') {
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-dynamodb'
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-core'
+    }
+
+    testImplementation (project(':test-module')){
+        because("it contains the library for local dynamoDb instance")
     }
 }
 

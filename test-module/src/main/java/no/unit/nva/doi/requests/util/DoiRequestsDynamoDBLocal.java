@@ -1,31 +1,34 @@
 package no.unit.nva.doi.requests.util;
 
-import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST;
-import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_HASH_KEY;
-import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
-import static no.unit.nva.doi.requests.service.DatabaseConstants.TABLE_HASH_KEY;
-import static no.unit.nva.doi.requests.service.DatabaseConstants.TABLE_SORT_KEY;
+import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_FIELD_NAME;
+import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_INDEX_HASH_KEY;
+import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
+import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_HASH_KEY;
+import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_SORT_KEY;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.local.embedded.DynamoDBEmbedded;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.BillingMode;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.CreateTableResult;
 import com.amazonaws.services.dynamodbv2.model.GlobalSecondaryIndex;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.Projection;
 import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import nva.commons.utils.Environment;
+import no.unit.nva.model.Publication;
+import nva.commons.utils.JsonUtils;
 import org.junit.jupiter.api.AfterEach;
 
-public abstract class DoiRequestsDynamoDBLocal  {
+public class DoiRequestsDynamoDBLocal {
 
     public static final String CREATED_DATE = "createdDate";
     public static final String ENTITY_DESCRIPTION = "entityDescription";
@@ -37,17 +40,14 @@ public abstract class DoiRequestsDynamoDBLocal  {
 
     protected AmazonDynamoDB client;
 
-
     protected Table getTable(String tableName) {
-       return  new DynamoDB(client).getTable(tableName);
+        return new DynamoDB(client).getTable(tableName);
     }
 
-    protected void initializeDatabase()  {
+    protected void initializeDatabase() {
         client = DynamoDBEmbedded.create().amazonDynamoDB();
         createPublicationsTable(client);
-
     }
-
 
     @AfterEach
     protected void after() {
@@ -56,7 +56,7 @@ public abstract class DoiRequestsDynamoDBLocal  {
         }
     }
 
-    protected CreateTableResult createPublicationsTable(AmazonDynamoDB ddb) {
+    protected void createPublicationsTable(AmazonDynamoDB ddb) {
         List<AttributeDefinition> attributeDefinitions = tableAndIndexKeyFields();
         List<KeySchemaElement> keySchema = tableKey();
         List<KeySchemaElement> byDoiRequestKeySchema = indexKey();
@@ -73,14 +73,18 @@ public abstract class DoiRequestsDynamoDBLocal  {
                 .withGlobalSecondaryIndexes(globalSecondaryIndexes)
                 .withBillingMode(BillingMode.PAY_PER_REQUEST);
 
-        return ddb.createTable(createTableRequest);
+        ddb.createTable(createTableRequest);
     }
 
-
+    protected void insertPublication(String tableName, Publication publication) throws JsonProcessingException {
+        getTable(tableName).putItem(
+            Item.fromJSON(JsonUtils.objectMapper.writeValueAsString(publication))
+        );
+    }
 
     private List<GlobalSecondaryIndex> byDoiRequestSecondaryIndex(List<KeySchemaElement> byDoiRequestKeySchema,
                                                                   Projection byDoiRequestProjection) {
-        return Arrays.asList(
+        return Collections.singletonList(
             new GlobalSecondaryIndex()
                 .withIndexName(BY_DOI_REQUEST_INDEX_NAME)
                 .withKeySchema(byDoiRequestKeySchema)
@@ -91,7 +95,12 @@ public abstract class DoiRequestsDynamoDBLocal  {
     private Projection byDoiRequestTableProjection() {
         return new Projection()
             .withProjectionType(ProjectionType.INCLUDE)
-            .withNonKeyAttributes(TABLE_HASH_KEY, CREATED_DATE, TABLE_SORT_KEY, ENTITY_DESCRIPTION, DOI_REQUEST, STATUS,
+            .withNonKeyAttributes(TABLE_HASH_KEY,
+                CREATED_DATE,
+                TABLE_SORT_KEY,
+                ENTITY_DESCRIPTION,
+                DOI_REQUEST_FIELD_NAME,
+                STATUS,
                 OWNER);
     }
 
