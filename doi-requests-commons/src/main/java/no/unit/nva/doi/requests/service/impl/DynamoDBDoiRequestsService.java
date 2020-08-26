@@ -148,24 +148,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private void putItem(Publication publication) {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec =
-            new PutItemSpec()
-                .withExpressionSpec(assertVersionHasNotChanged(publication))
-                .withItem(item);
-
+            new PutItemSpec().withItem(item);
         publicationsTable.putItem(putItemSpec);
     }
 
-    private PutItemExpressionSpec assertVersionHasNotChanged(Publication publication) {
-        String modifiedDate = extractModifiedDateString(publication);
 
-        return new ExpressionSpecBuilder()
-            .withCondition(S("modifiedDate").eq(modifiedDate)).buildForPut();
-    }
-
-    private String extractModifiedDateString(Publication publication) {
-        JsonNode json = objectMapper.convertValue(publication, JsonNode.class);
-        return json.get("modifiedDate").textValue();
-    }
 
     private Publication fetchPublication(UUID publicationId) {
         QuerySpec query = buildQuery(publicationId);
