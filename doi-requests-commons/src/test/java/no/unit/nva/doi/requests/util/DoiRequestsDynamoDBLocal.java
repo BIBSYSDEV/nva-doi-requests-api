@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 
-public abstract class DoiRequestsDynamoDBLocal  {
+public abstract class DoiRequestsDynamoDBLocal {
 
     public static final String CREATED_DATE = "createdDate";
     public static final String ENTITY_DESCRIPTION = "entityDescription";
@@ -36,17 +36,14 @@ public abstract class DoiRequestsDynamoDBLocal  {
 
     protected AmazonDynamoDB client;
 
-
     protected Table getTable(String tableName) {
-       return  new DynamoDB(client).getTable(tableName);
+        return new DynamoDB(client).getTable(tableName);
     }
 
-    protected void initializeDatabase()  {
+    protected void initializeDatabase() {
         client = DynamoDBEmbedded.create().amazonDynamoDB();
         createPublicationsTable(client);
-
     }
-
 
     @AfterEach
     protected void after() {
@@ -74,8 +71,6 @@ public abstract class DoiRequestsDynamoDBLocal  {
 
         return ddb.createTable(createTableRequest);
     }
-
-
 
     private List<GlobalSecondaryIndex> byDoiRequestSecondaryIndex(List<KeySchemaElement> byDoiRequestKeySchema,
                                                                   Projection byDoiRequestProjection) {

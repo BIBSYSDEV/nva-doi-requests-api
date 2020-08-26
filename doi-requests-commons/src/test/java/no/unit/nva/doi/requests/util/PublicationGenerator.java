@@ -21,7 +21,7 @@ public final class PublicationGenerator {
     /**
      * Generates a Publication with sufficient data to map to DoiRequestSummary.
      *
-     * @return  publication
+     * @return publication
      */
     public static Publication getPublicationWithDoiRequest() {
         return getPublicationWithoutDoiRequest().copy()
@@ -33,7 +33,11 @@ public final class PublicationGenerator {
             .build();
     }
 
-    public static Publication getPublicationWithoutDoiRequest(){
+    /**
+     * Create publication without DoiRequest.
+     * @return publication
+     */
+    public static Publication getPublicationWithoutDoiRequest() {
         return new Publication.Builder()
             .withIdentifier(UUID.randomUUID())
             .withModifiedDate(Instant.now())
@@ -48,5 +52,4 @@ public final class PublicationGenerator {
             )
             .build();
     }
-
 }
