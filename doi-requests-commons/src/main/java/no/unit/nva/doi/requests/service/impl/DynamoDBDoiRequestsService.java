@@ -1,7 +1,8 @@
 package no.unit.nva.doi.requests.service.impl;
 
-import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.S;
 import static java.util.Objects.nonNull;
+import static no.unit.nva.doi.requests.contants.ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
 import static nva.commons.utils.attempt.Try.attempt;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -16,11 +17,7 @@ import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder;
-import com.amazonaws.services.dynamodbv2.xspec.PutItemExpressionSpec;
-import com.amazonaws.services.kms.model.NotFoundException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
@@ -38,20 +35,18 @@ import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
+import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
-    public static final String PUBLICATIONS_TABLE_NAME = "TABLE_NAME";
-    public static final String DOI_REQUESTS_INDEX = "INDEX_NAME";
     public static final String PUBLICATION_ID_HASH_KEY_NAME = "identifier";
     public static final String DOI_REQUEST_STATUS_DATE = "doiRequestStatusDate";
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
     public static final int SINGLE_ITEM = 1;
-    public static final String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -83,8 +78,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                       ObjectMapper objectMapper,
                                       Environment environment,
                                       Clock clockForTimestamps) {
-        String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME);
-        String indexName = environment.readEnv(DOI_REQUESTS_INDEX);
+        String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
+        String indexName = environment.readEnv(DOI_REQUESTS_INDEX_ENV_VARIABLE);
+
         DynamoDB dynamoDB = new DynamoDB(client);
         this.publicationsTable = dynamoDB.getTable(tableName);
         this.doiRequestsIndex = publicationsTable.getIndex(indexName);
@@ -116,13 +112,13 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public DoiRequestSummary fetchDoiRequest(UUID publicationId) {
+    public Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws NotFoundException {
         Publication publication = fetchPublication(publicationId);
-        return DoiRequestSummary.fromPublication(publication);
+        return Optional.ofNullable(DoiRequestSummary.fromPublication(publication));
     }
 
     @Override
-    public void createDoiRequest(UUID publicationId) throws ConflictException {
+    public void createDoiRequest(UUID publicationId) throws ConflictException, NotFoundException {
         Publication publication = fetchPublication(publicationId);
         if (nonNull(publication.getDoiRequest())) {
             throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publicationId.toString());
@@ -148,26 +144,12 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private void putItem(Publication publication) {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec =
-            new PutItemSpec()
-                .withExpressionSpec(assertVersionHasNotChanged(publication))
-                .withItem(item);
+            new PutItemSpec().withItem(item);
 
         publicationsTable.putItem(putItemSpec);
     }
 
-    private PutItemExpressionSpec assertVersionHasNotChanged(Publication publication) {
-        String modifiedDate = extractModifiedDateString(publication);
-
-        return new ExpressionSpecBuilder()
-            .withCondition(S("modifiedDate").eq(modifiedDate)).buildForPut();
-    }
-
-    private String extractModifiedDateString(Publication publication) {
-        JsonNode json = objectMapper.convertValue(publication, JsonNode.class);
-        return json.get("modifiedDate").textValue();
-    }
-
-    private Publication fetchPublication(UUID publicationId) {
+    private Publication fetchPublication(UUID publicationId) throws NotFoundException {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
