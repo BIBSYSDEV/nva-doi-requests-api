@@ -34,7 +34,7 @@ public final class PublicationGenerator {
     }
 
     /**
-     * Publication without Doi request
+     * Publication without Doi request.
      * @return a publication
      */
     public static Publication getPublicationWithoutDoiRequest() {
