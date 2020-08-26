@@ -8,5 +8,5 @@ public class DatabaseConstants {
     public static final String DOI_REQUEST_INDEX_SORT_KEY = "doiRequestStatusDate";
 
 
-    public static final String DOI_REQUEST = "doiRequest";
+    public static final String DOI_REQUEST_FIELD_NAME = "doiRequest";
 }

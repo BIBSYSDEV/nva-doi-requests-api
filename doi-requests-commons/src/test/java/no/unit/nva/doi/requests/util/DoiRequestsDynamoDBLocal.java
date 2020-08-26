@@ -1,6 +1,6 @@
 package no.unit.nva.doi.requests.util;
 
-import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_FIELD_NAME;
 import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_HASH_KEY;
 import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
 import static no.unit.nva.doi.requests.service.DatabaseConstants.TABLE_HASH_KEY;
@@ -22,7 +22,6 @@ import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import java.util.Arrays;
 import java.util.List;
-import nva.commons.utils.Environment;
 import org.junit.jupiter.api.AfterEach;
 
 public abstract class DoiRequestsDynamoDBLocal  {
@@ -91,7 +90,8 @@ public abstract class DoiRequestsDynamoDBLocal  {
     private Projection byDoiRequestTableProjection() {
         return new Projection()
             .withProjectionType(ProjectionType.INCLUDE)
-            .withNonKeyAttributes(TABLE_HASH_KEY, CREATED_DATE, TABLE_SORT_KEY, ENTITY_DESCRIPTION, DOI_REQUEST, STATUS,
+            .withNonKeyAttributes(TABLE_HASH_KEY, CREATED_DATE, TABLE_SORT_KEY, ENTITY_DESCRIPTION,
+                DOI_REQUEST_FIELD_NAME, STATUS,
                 OWNER);
     }
 
