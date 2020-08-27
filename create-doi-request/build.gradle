@@ -6,7 +6,9 @@ repositories {
 dependencies {
     implementation project(":doi-requests-commons")
     testImplementation(project(":doi-request-common-constants"))
-    testImplementation( project(":test-module"))
+    testImplementation( project(":test-module")){
+        because("it contains the library for the local DynamoDb")
+    }
 }
 
 // necessary tasks for making localDynamoDb to work
