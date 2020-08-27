@@ -4,7 +4,7 @@ Feature: Find DOI requests
     Given A Creator has Publications with DOI Requests
     When they set the Accept header to "application/json"
     And they set the Authentication header to a Bearer token with their credentials
-    And they request GET /doi/request?role=creator
+    And they request GET with query parameter role=Creator
     Then they receive a response with status code 200
     And they see that the response Content-Type header is "application/json"
     And they see that the response body is a DoiRequestsResponse
@@ -23,7 +23,7 @@ Feature: Find DOI requests
     Given A Curator belongs to a Publisher that has Publications with DOI Requests
     When they set the Accept header to "application/json"
     And they set the Authentication header to a Bearer token with their credentials
-    And they request GET /doi/requests?role=curator
+    And they request GET with query parameter role=Curator
     Then they receive a response with status code 200
     And they see that the response Content-Type header is "application/json"
     And they see that the response body is a DoiRequestsResponse
@@ -32,7 +32,7 @@ Feature: Find DOI requests
   Scenario: An Anonymous User attempts to find DOI Requests as a Creator
     Given An Anonymous User wants to find DOI Requests
     When they set the Accept header to "application/json"
-    And they request GET /doi/request?role=creator
+    And they request GET with query parameter role=Creator
     Then they receive a response with status code 401
     And they see that the response Content-Type header is "application/problem+json"
     And they see that the response body is a problem.json object
@@ -44,7 +44,7 @@ Feature: Find DOI requests
     Given A Creator does not have the role of Curator
     When they set the Accept header to "application/json"
     And they set the Authentication header to a Bearer token with their credentials
-    And they request GET /doi/request?role=curator
+    And they request GET with query parameter role=Curator
     Then they receive a response with status code 401
     And they see that the response Content-Type header is "application/problem+json"
     And they see that the response body is a problem.json object
