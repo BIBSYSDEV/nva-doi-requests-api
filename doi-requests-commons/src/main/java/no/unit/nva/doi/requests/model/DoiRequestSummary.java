@@ -9,6 +9,7 @@ import java.util.UUID;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.EntityDescription;
+import no.unit.nva.model.Publication;
 import nva.commons.utils.JacocoGenerated;
 
 public class DoiRequestSummary {
@@ -22,9 +23,9 @@ public class DoiRequestSummary {
     /**
      * Constructor for DoiRequestSummary.
      *
-     * @param identifier    publication identifier
-     * @param owner publication owner
-     * @param doiRequest    publication doiRequest
+     * @param identifier        publication identifier
+     * @param owner             publication owner
+     * @param doiRequest        publication doiRequest
      * @param entityDescription publication entityDescription
      */
     @JsonCreator
@@ -32,12 +33,27 @@ public class DoiRequestSummary {
                              @JsonProperty(value = "owner", access = Access.WRITE_ONLY) String owner,
                              @JsonProperty(value = "doiRequest", access = Access.WRITE_ONLY) DoiRequest doiRequest,
                              @JsonProperty(value = "entityDescription", access = Access.WRITE_ONLY)
-                                     EntityDescription entityDescription) {
+                                 EntityDescription entityDescription) {
         this.doiRequestStatus = doiRequest.getStatus();
         this.doiRequestDate = doiRequest.getDate();
         this.publicationIdentifier = identifier;
         this.publicationTitle = entityDescription.getMainTitle();
         this.publicationOwner = owner;
+    }
+
+    /**
+     * Creates DoiRequest summary from a publication.
+     *
+     * @param publication the publication.
+     * @return a DoiRequestSummary.
+     */
+    public static DoiRequestSummary fromPublication(Publication publication) {
+        return new DoiRequestSummary(
+            publication.getIdentifier(),
+            publication.getOwner(),
+            publication.getDoiRequest(),
+            publication.getEntityDescription()
+        );
     }
 
     public DoiRequestStatus getDoiRequestStatus() {

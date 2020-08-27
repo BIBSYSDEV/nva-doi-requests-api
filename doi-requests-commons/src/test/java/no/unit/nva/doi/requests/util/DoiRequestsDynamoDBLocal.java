@@ -1,11 +1,13 @@
 package no.unit.nva.doi.requests.util;
 
-import static com.amazonaws.services.dynamodbv2.model.BillingMode.PAY_PER_REQUEST;
-import static com.amazonaws.services.dynamodbv2.model.ScalarAttributeType.S;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_FIELD_NAME;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_HASH_KEY;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.TABLE_HASH_KEY;
+import static no.unit.nva.doi.requests.service.DatabaseConstants.TABLE_SORT_KEY;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
-import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.local.embedded.DynamoDBEmbedded;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
@@ -20,15 +22,10 @@ import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.AfterEach;
 
-public class DoiRequestsDynamoDBLocal extends ExternalResource {
+public abstract class DoiRequestsDynamoDBLocal {
 
-    public static final String IDENTIFIER = "identifier";
-    public static final String MODIFIED_DATE = "modifiedDate";
-    public static final String PUBLISHER_ID = "publisherId";
-    public static final String DOI_REQUEST = "doiRequest";
-    public static final String DOI_REQUEST_STATUS_DATE = "doiRequestStatusDate";
     public static final String CREATED_DATE = "createdDate";
     public static final String ENTITY_DESCRIPTION = "entityDescription";
     public static final String STATUS = "status";
@@ -37,54 +34,32 @@ public class DoiRequestsDynamoDBLocal extends ExternalResource {
     public static final String NVA_RESOURCES_TABLE_NAME = "nva_resources";
     public static final String BY_DOI_REQUEST_INDEX_NAME = "ByDoiRequest";
 
-    private AmazonDynamoDB ddb;
-    private DynamoDB client;
+    protected AmazonDynamoDB client;
 
-    @Override
-    protected void before() throws Throwable {
-        super.before();
-        ddb = DynamoDBEmbedded.create().amazonDynamoDB();
-        createPublicationsTable(ddb);
-        client = new DynamoDB(ddb);
+    protected Table getTable(String tableName) {
+        return new DynamoDB(client).getTable(tableName);
     }
 
-    public Table getTable() {
-        return client.getTable(NVA_RESOURCES_TABLE_NAME);
+    protected void initializeDatabase() {
+        client = DynamoDBEmbedded.create().amazonDynamoDB();
+        createPublicationsTable(client);
     }
 
-    public Index getIndex() {
-        return getTable().getIndex(BY_DOI_REQUEST_INDEX_NAME);
+    @AfterEach
+    protected void after() {
+        if (client != null) {
+            client.shutdown();
+        }
     }
 
-    private CreateTableResult createPublicationsTable(AmazonDynamoDB ddb) {
-        List<AttributeDefinition> attributeDefinitions = Arrays.asList(
-            new AttributeDefinition(IDENTIFIER, ScalarAttributeType.S),
-            new AttributeDefinition(MODIFIED_DATE, ScalarAttributeType.S),
-            new AttributeDefinition(PUBLISHER_ID, ScalarAttributeType.S),
-            new AttributeDefinition(DOI_REQUEST_STATUS_DATE, ScalarAttributeType.S)
-        );
+    protected CreateTableResult createPublicationsTable(AmazonDynamoDB ddb) {
+        List<AttributeDefinition> attributeDefinitions = tableAndIndexKeyFields();
+        List<KeySchemaElement> keySchema = tableKey();
+        List<KeySchemaElement> byDoiRequestKeySchema = indexKey();
+        Projection byDoiRequestProjection = byDoiRequestTableProjection();
 
-        List<KeySchemaElement> keySchema = Arrays.asList(
-            new KeySchemaElement(IDENTIFIER, KeyType.HASH),
-            new KeySchemaElement(MODIFIED_DATE, KeyType.RANGE)
-        );
-
-        List<KeySchemaElement> byDoiRequestKeySchema = Arrays.asList(
-            new KeySchemaElement(PUBLISHER_ID, KeyType.HASH),
-            new KeySchemaElement(DOI_REQUEST_STATUS_DATE, KeyType.RANGE)
-        );
-
-        Projection byDoiRequestProjection = new Projection()
-            .withProjectionType(ProjectionType.INCLUDE)
-            .withNonKeyAttributes(IDENTIFIER, CREATED_DATE, MODIFIED_DATE, ENTITY_DESCRIPTION, DOI_REQUEST, STATUS,
-                OWNER);
-
-        List<GlobalSecondaryIndex> globalSecondaryIndexes = Arrays.asList(
-            new GlobalSecondaryIndex()
-                .withIndexName(BY_DOI_REQUEST_INDEX_NAME)
-                .withKeySchema(byDoiRequestKeySchema)
-                .withProjection(byDoiRequestProjection)
-        );
+        List<GlobalSecondaryIndex> globalSecondaryIndexes = byDoiRequestSecondaryIndex(byDoiRequestKeySchema,
+            byDoiRequestProjection);
 
         CreateTableRequest createTableRequest =
             new CreateTableRequest()
@@ -97,11 +72,44 @@ public class DoiRequestsDynamoDBLocal extends ExternalResource {
         return ddb.createTable(createTableRequest);
     }
 
-    @Override
-    protected void after() {
-        super.after();
-        if (ddb != null) {
-            ddb.shutdown();
-        }
+    private List<GlobalSecondaryIndex> byDoiRequestSecondaryIndex(List<KeySchemaElement> byDoiRequestKeySchema,
+                                                                  Projection byDoiRequestProjection) {
+        return Arrays.asList(
+            new GlobalSecondaryIndex()
+                .withIndexName(BY_DOI_REQUEST_INDEX_NAME)
+                .withKeySchema(byDoiRequestKeySchema)
+                .withProjection(byDoiRequestProjection)
+        );
+    }
+
+    private Projection byDoiRequestTableProjection() {
+        return new Projection()
+            .withProjectionType(ProjectionType.INCLUDE)
+            .withNonKeyAttributes(TABLE_HASH_KEY, CREATED_DATE, TABLE_SORT_KEY, ENTITY_DESCRIPTION,
+                DOI_REQUEST_FIELD_NAME, STATUS,
+                OWNER);
+    }
+
+    private List<KeySchemaElement> indexKey() {
+        return Arrays.asList(
+            new KeySchemaElement(DOI_REQUEST_INDEX_HASH_KEY, KeyType.HASH),
+            new KeySchemaElement(DOI_REQUEST_INDEX_SORT_KEY, KeyType.RANGE)
+        );
+    }
+
+    private List<KeySchemaElement> tableKey() {
+        return Arrays.asList(
+            new KeySchemaElement(TABLE_HASH_KEY, KeyType.HASH),
+            new KeySchemaElement(TABLE_SORT_KEY, KeyType.RANGE)
+        );
+    }
+
+    private List<AttributeDefinition> tableAndIndexKeyFields() {
+        return Arrays.asList(
+            new AttributeDefinition(TABLE_HASH_KEY, ScalarAttributeType.S),
+            new AttributeDefinition(TABLE_SORT_KEY, ScalarAttributeType.S),
+            new AttributeDefinition(DOI_REQUEST_INDEX_HASH_KEY, ScalarAttributeType.S),
+            new AttributeDefinition(DOI_REQUEST_INDEX_SORT_KEY, ScalarAttributeType.S)
+        );
     }
 }
