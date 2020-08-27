@@ -79,11 +79,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                       ObjectMapper objectMapper,
                                       Environment environment,
                                       Clock clockForTimestamps) {
-        String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME);
-        String indexName = environment.readEnv(DOI_REQUESTS_INDEX);
+
         DynamoDB dynamoDB = new DynamoDB(client);
-        this.publicationsTable = dynamoDB.getTable(tableName);
-        this.doiRequestsIndex = publicationsTable.getIndex(indexName);
+        this.publicationsTable = dynamoDB.getTable(environment.readEnv(PUBLICATIONS_TABLE_NAME));
+        this.doiRequestsIndex = publicationsTable.getIndex(environment.readEnv(DOI_REQUESTS_INDEX));
         this.objectMapper = objectMapper;
         this.clockForTimestamps = clockForTimestamps;
     }
