@@ -147,8 +147,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         publicationsTable.putItem(putItemSpec);
     }
 
-
-
     private Publication fetchPublication(UUID publicationId) {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
