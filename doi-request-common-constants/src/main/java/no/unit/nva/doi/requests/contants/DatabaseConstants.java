@@ -1,6 +1,7 @@
-package no.unit.nva.doi.requests.service;
+package no.unit.nva.doi.requests.contants;
 
-public class DatabaseConstants {
+public final class DatabaseConstants {
+
 
     public static final String TABLE_HASH_KEY = "identifier";
     public static final String TABLE_SORT_KEY = "modifiedDate";

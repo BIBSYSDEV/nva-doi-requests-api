@@ -33,6 +33,7 @@ public final class PublicationGenerator {
             .build();
     }
 
+
     /**
      * Create publication without DoiRequest.
      * @return publication
