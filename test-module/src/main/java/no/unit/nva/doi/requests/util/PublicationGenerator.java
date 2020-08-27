@@ -33,6 +33,11 @@ public final class PublicationGenerator {
             .build();
     }
 
+
+    /**
+     * Create publication without DoiRequest.
+     * @return publication
+     */
     public static Publication getPublicationWithoutDoiRequest() {
         return new Publication.Builder()
             .withIdentifier(UUID.randomUUID())

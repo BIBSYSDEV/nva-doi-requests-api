@@ -1,6 +1,5 @@
 package no.unit.nva.doi.requests.service.impl;
 
-import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.S;
 import static java.util.Objects.nonNull;
 import static nva.commons.utils.attempt.Try.attempt;
 
@@ -16,11 +15,8 @@ import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder;
-import com.amazonaws.services.dynamodbv2.xspec.PutItemExpressionSpec;
 import com.amazonaws.services.kms.model.NotFoundException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
@@ -83,11 +79,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                       ObjectMapper objectMapper,
                                       Environment environment,
                                       Clock clockForTimestamps) {
-        String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME);
-        String indexName = environment.readEnv(DOI_REQUESTS_INDEX);
+
         DynamoDB dynamoDB = new DynamoDB(client);
-        this.publicationsTable = dynamoDB.getTable(tableName);
-        this.doiRequestsIndex = publicationsTable.getIndex(indexName);
+        this.publicationsTable = dynamoDB.getTable(environment.readEnv(PUBLICATIONS_TABLE_NAME));
+        this.doiRequestsIndex = publicationsTable.getIndex(environment.readEnv(DOI_REQUESTS_INDEX));
         this.objectMapper = objectMapper;
         this.clockForTimestamps = clockForTimestamps;
     }
@@ -148,23 +143,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private void putItem(Publication publication) {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec =
-            new PutItemSpec()
-                .withExpressionSpec(assertVersionHasNotChanged(publication))
-                .withItem(item);
-
+            new PutItemSpec().withItem(item);
         publicationsTable.putItem(putItemSpec);
-    }
-
-    private PutItemExpressionSpec assertVersionHasNotChanged(Publication publication) {
-        String modifiedDate = extractModifiedDateString(publication);
-
-        return new ExpressionSpecBuilder()
-            .withCondition(S("modifiedDate").eq(modifiedDate)).buildForPut();
-    }
-
-    private String extractModifiedDateString(Publication publication) {
-        JsonNode json = objectMapper.convertValue(publication, JsonNode.class);
-        return json.get("modifiedDate").textValue();
     }
 
     private Publication fetchPublication(UUID publicationId) {

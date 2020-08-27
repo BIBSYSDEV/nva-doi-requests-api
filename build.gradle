@@ -80,6 +80,7 @@ subprojects {
                     counter = 'METHOD'
                     value = 'COVEREDRATIO'
                     minimum = 0.9
+
                 }
             }
 
@@ -88,6 +89,7 @@ subprojects {
                     counter = 'CLASS'
                     value = 'COVEREDRATIO'
                     minimum = 0.9
+
                 }
             }
         }
