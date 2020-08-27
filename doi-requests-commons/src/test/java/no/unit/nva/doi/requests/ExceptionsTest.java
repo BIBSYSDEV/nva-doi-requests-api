@@ -1,5 +1,7 @@
 package no.unit.nva.doi.requests;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
@@ -14,8 +16,13 @@ public class ExceptionsTest {
 
     @Test
     public void badRequestExceptionHasStatusCode400() {
-        ApiGatewayException exception = new BadRequestException(null);
+        ApiGatewayException exception = new BadRequestException(MESSAGE);
         Assertions.assertEquals(HttpStatus.SC_BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    public void badRequestExceptionAcceptsExceptionAsInputParameter() {
+        assertDoesNotThrow(() -> new BadRequestException(new RuntimeException()));
     }
 
     @Test
@@ -29,5 +36,4 @@ public class ExceptionsTest {
         ApiGatewayException exception = new NotAuthorizedException(null);
         Assertions.assertEquals(HttpStatus.SC_UNAUTHORIZED, exception.getStatusCode());
     }
-
 }
