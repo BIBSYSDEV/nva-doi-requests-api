@@ -28,9 +28,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
+import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequest;
+import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
@@ -47,6 +49,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
     public static final int SINGLE_ITEM = 1;
+    public static final String DEFAULT_AUTHOR = "unknonwn";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -118,17 +121,26 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public void createDoiRequest(UUID publicationId) throws ConflictException, NotFoundException {
-        Publication publication = fetchPublication(publicationId);
+    public void createDoiRequest(CreateDoiRequest createDoiRequest) throws ConflictException, NotFoundException {
+        Publication publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
         if (nonNull(publication.getDoiRequest())) {
-            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publicationId.toString());
+            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
         }
         DoiRequest doiRequest = new DoiRequest.Builder()
             .withStatus(DoiRequestStatus.REQUESTED)
             .withDate(Instant.now(clockForTimestamps))
+            .addMessage(createMessage(createDoiRequest))
             .build();
         publication.setDoiRequest(doiRequest);
         putItem(publication);
+    }
+
+    private DoiRequestMessage createMessage(CreateDoiRequest createDoiRequest) {
+        return new DoiRequestMessage.Builder()
+            .withAuthor(DEFAULT_AUTHOR)
+            .withText(createDoiRequest.getMessage())
+            .withTimestamp(Instant.now(clockForTimestamps))
+            .build();
     }
 
     protected Optional<DoiRequestSummary> toDoiRequestSummary(Item item) {

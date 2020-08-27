@@ -21,9 +21,11 @@ import com.amazonaws.services.dynamodbv2.model.Projection;
 import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import no.unit.nva.model.Publication;
 import nva.commons.utils.JsonUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -80,6 +82,15 @@ public class DoiRequestsDynamoDBLocal {
         getTable(tableName).putItem(
             Item.fromJSON(JsonUtils.objectMapper.writeValueAsString(publication))
         );
+    }
+
+    protected Publication getPublication(String tableName, UUID publicationId, String modifiedDate) throws IOException {
+        Item item = getTable(tableName).getItem(
+            TABLE_HASH_KEY,publicationId.toString(),
+            TABLE_SORT_KEY, modifiedDate
+        );
+
+        return JsonUtils.objectMapper.readValue(item.toJSON(),Publication.class);
     }
 
     private List<GlobalSecondaryIndex> byDoiRequestSecondaryIndex(List<KeySchemaElement> byDoiRequestKeySchema,

@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.util;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 import no.unit.nva.model.DoiRequest;
@@ -37,10 +38,10 @@ public final class PublicationGenerator {
      * Publication without Doi request.
      * @return a publication
      */
-    public static Publication getPublicationWithoutDoiRequest() {
+    public static Publication getPublicationWithoutDoiRequest(Clock clock) {
         return new Publication.Builder()
             .withIdentifier(UUID.randomUUID())
-            .withModifiedDate(Instant.now())
+            .withModifiedDate(Instant.now(clock))
             .withOwner(OWNER)
             .withPublisher(new Organization.Builder()
                 .withId(PUBLISHER_ID)
@@ -51,5 +52,13 @@ public final class PublicationGenerator {
                 .build()
             )
             .build();
+    }
+
+    /**
+     * Publication without Doi request.
+     * @return a publication
+     */
+    public static Publication getPublicationWithoutDoiRequest() {
+        return getPublicationWithoutDoiRequest(Clock.systemDefaultZone());
     }
 }

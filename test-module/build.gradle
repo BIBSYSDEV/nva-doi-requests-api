@@ -8,7 +8,7 @@ def junit5Version = '5.6.0'
 
 dependencies {
     implementation( project (":doi-request-common-constants"))
-    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: '63330fec9abef'
+    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: '043c5d676211'
 
     implementation group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: '78adbd6fe3'
 

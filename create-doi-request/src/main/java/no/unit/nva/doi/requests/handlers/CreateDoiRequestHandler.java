@@ -2,7 +2,7 @@ package no.unit.nva.doi.requests.handlers;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
-import java.util.UUID;
+import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import nva.commons.exceptions.ApiGatewayException;
@@ -44,14 +44,14 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
     }
 
     private static Logger defaultLogger() {
-        return LoggerFactory.getLogger(CreateDoiRequest.class);
+        return LoggerFactory.getLogger(CreateDoiRequestHandler.class);
     }
 
     @Override
     protected Void processInput(CreateDoiRequest input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
         input.validate();
-        doiRequestService.createDoiRequest(UUID.fromString(input.getPublicationId()));
+        doiRequestService.createDoiRequest(input);
         return null;
     }
 

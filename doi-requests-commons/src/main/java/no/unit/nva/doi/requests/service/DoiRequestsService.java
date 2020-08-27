@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
@@ -22,5 +23,5 @@ public interface DoiRequestsService {
 
     Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws JsonProcessingException, NotFoundException;
 
-    void createDoiRequest(UUID publicationId) throws ConflictException, NotFoundException;
+    void createDoiRequest(CreateDoiRequest createDoiRequest) throws ConflictException, NotFoundException;
 }
