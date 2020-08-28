@@ -50,7 +50,7 @@ Resources:
         info:
           title: NVA DOI Requests API
           description: NVA DOI Requests
-          version: 1
+          version: '1.0'
         paths:
           /:
             get:
