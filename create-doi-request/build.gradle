@@ -6,7 +6,23 @@ repositories {
 dependencies {
     implementation project(":doi-requests-commons")
     testImplementation(project(":doi-request-common-constants"))
-    testImplementation( project(":test-module")){
+    testImplementation(project(":test-module")) {
         because("it contains the library for the local DynamoDb")
     }
 }
+// necessary tasks for making localDynamoDb to work
+    configurations.testImplementation.canBeResolved = true
+
+    task copyNativeDeps(type: Copy) {
+        from(configurations.testImplementation) {
+            include "*.dylib"
+            include "*.so"
+            include "*.dll"
+        }
+        into 'build/dynamodb-local'
+    }
+
+    test.dependsOn copyNativeDeps
+    test.doFirst {
+        systemProperty "java.library.path", 'build/dynamodb-local'
+    }

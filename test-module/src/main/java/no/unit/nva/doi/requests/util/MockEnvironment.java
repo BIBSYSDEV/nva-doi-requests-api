@@ -14,6 +14,7 @@ public final class MockEnvironment {
 
     /**
      * Mock environment with all env variables necessary (database and handlers).
+     *
      * @return Environment.
      */
     public static Environment mockEnvironment() {
