@@ -8,7 +8,7 @@ def junit5Version = '5.6.0'
 
 dependencies {
     implementation( project (":doi-request-common-constants"))
-    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: '63330fec9abef'
+    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: '043c5d676211'
 
     implementation group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: '78adbd6fe3'
 
@@ -18,22 +18,4 @@ dependencies {
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-dynamodb'
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-core'
     }
-}
-
-
-// necessary tasks for making localDynamoDb to work
-configurations.testImplementation.canBeResolved = true
-
-task copyNativeDeps(type: Copy) {
-    from(configurations.testImplementation) {
-        include "*.dylib"
-        include "*.so"
-        include "*.dll"
-    }
-    into 'build/dynamodb-local'
-}
-
-build.dependsOn copyNativeDeps
-test.doFirst {
-    systemProperty "java.library.path", 'build/dynamodb-local'
 }
