@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
+
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -272,8 +272,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
             .build();
     }
 
-
-
     private Table getTable() {
         return getTable(environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
     }
@@ -285,11 +283,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Publication getPublication(UUID publicationId) throws IOException {
         String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
-        return super.getPublication(tableName, publicationId, serializeInstantWithoutQuotationMarks(mockedNow));
+        return super.getPublication(tableName, publicationId, mockedNow);
     }
 
-    private String serializeInstantWithoutQuotationMarks(Instant instant) throws JsonProcessingException {
-        return JsonUtils.objectMapper.writeValueAsString(instant)
-            .replaceAll("\"","");
-    }
+
+
 }
