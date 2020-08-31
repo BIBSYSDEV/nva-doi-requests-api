@@ -3,7 +3,6 @@ package no.unit.nva.doi.requests.service.impl;
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.core.Is.is;
@@ -31,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -182,11 +180,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(actualDoiRequestMessage, is(equalTo(expectedMessage)));
     }
 
-    private DoiRequestMessage extractDoiRequestMessageFromPublication(Publication updatedPublication) {
-        return updatedPublication.getDoiRequest().getMessages()
-            .stream().collect(SingletonCollector.collect());
-    }
-
     @Test
     public void createDoiRequestThrowsConflictExceptionWhenCreatingDoiRequestForPublicationWithDoiRequest()
         throws JsonProcessingException {
@@ -227,6 +220,11 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         RuntimeException exception = assertThrows(RuntimeException.class, action);
 
         assertThat(exception.getMessage(), containsString(exceptionMessage));
+    }
+
+    private DoiRequestMessage extractDoiRequestMessageFromPublication(Publication updatedPublication) {
+        return updatedPublication.getDoiRequest().getMessages()
+            .stream().collect(SingletonCollector.collect());
     }
 
     private DoiRequestMessage expectedDoiRequestMessage() {
@@ -272,8 +270,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
             .build();
     }
 
-
-
     private Table getTable() {
         return getTable(environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
     }
@@ -290,6 +286,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private String serializeInstantWithoutQuotationMarks(Instant instant) throws JsonProcessingException {
         return JsonUtils.objectMapper.writeValueAsString(instant)
-            .replaceAll("\"","");
+            .replaceAll("\"", "");
     }
 }
