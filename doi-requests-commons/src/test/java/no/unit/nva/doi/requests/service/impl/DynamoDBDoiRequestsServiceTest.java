@@ -1,37 +1,11 @@
 package no.unit.nva.doi.requests.service.impl;
 
-import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
-import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.core.Is.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -50,6 +24,26 @@ import nva.commons.utils.SingletonCollector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+
+import java.io.IOException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.core.Is.is;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
@@ -75,15 +69,15 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void constructorCreatesInstanceOnValidInput() {
         DynamoDBDoiRequestsService dynamoDBDoiRequestsService =
-            new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, mockEnvironment());
+                new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, mockEnvironment());
         assertNotNull(dynamoDBDoiRequestsService);
     }
 
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+                PublicationGenerator.PUBLISHER_ID,
+                DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
 
         assertTrue(doiRequestSummaries.isEmpty());
     }
@@ -95,15 +89,15 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(PublicationGenerator.getPublicationWithDoiRequest());
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+                PublicationGenerator.PUBLISHER_ID,
+                DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(3, doiRequestSummaries.size());
     }
 
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsAllButOneResultsWhenUserOwnsAllButOneDoiRequests()
-        throws Exception {
+            throws Exception {
         insertPublication(PublicationGenerator.getPublicationWithDoiRequest());
         insertPublication(PublicationGenerator.getPublicationWithDoiRequest());
 
@@ -112,8 +106,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publicationOwnedByAnother);
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+                PublicationGenerator.PUBLISHER_ID,
+                DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(2, doiRequestSummaries.size());
     }
@@ -124,10 +118,10 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         when(index.query(anyString(), any(), any(RangeKeyCondition.class))).thenThrow(RuntimeException.class);
 
         DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(
-            JsonUtils.objectMapper, getTable(), index);
+                JsonUtils.objectMapper, getTable(), index);
         DynamoDBException exception = assertThrows(DynamoDBException.class,
-            () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID,
-                DoiRequestStatus.REQUESTED));
+                () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID,
+                        DoiRequestStatus.REQUESTED));
 
         assertEquals(DynamoDBDoiRequestsService.ERROR_READING_FROM_TABLE, exception.getMessage());
     }
@@ -142,7 +136,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void fetchDoiRequestByPublicationIdReturnsDoiRequestSummary()
-        throws JsonProcessingException, NotFoundException {
+            throws JsonProcessingException, NotFoundException {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
         insertPublication(publication);
         Optional<DoiRequestSummary> result = service.fetchDoiRequest(publication.getIdentifier());
@@ -151,7 +145,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestAddsDoiRequestToPublication()
-        throws JsonProcessingException, ConflictException, NotFoundException {
+            throws JsonProcessingException, ConflictException, NotFoundException {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest();
         insertPublication(publication);
 
@@ -159,15 +153,15 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.createDoiRequest(createDoiRequest(publication));
         DoiRequestSummary actualDoiRequestSummary = service
-            .fetchDoiRequest(publication.getIdentifier())
-            .orElseThrow();
+                .fetchDoiRequest(publication.getIdentifier())
+                .orElseThrow();
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
     }
 
     @Test
     public void createDoiRequestAddsMessageToPublicationsDoiRequest()
-        throws IOException, ConflictException, NotFoundException {
+            throws IOException, ConflictException, NotFoundException {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -184,12 +178,12 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequestMessage extractDoiRequestMessageFromPublication(Publication updatedPublication) {
         return updatedPublication.getDoiRequest().getMessages()
-            .stream().collect(SingletonCollector.collect());
+                .stream().collect(SingletonCollector.collect());
     }
 
     @Test
     public void createDoiRequestThrowsConflictExceptionWhenCreatingDoiRequestForPublicationWithDoiRequest()
-        throws JsonProcessingException {
+            throws JsonProcessingException {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
         insertPublication(publication);
 
@@ -215,10 +209,10 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         final String exceptionMessage = "This is the exception message";
         ObjectMapper objectMapper = spy(JsonUtils.objectMapper);
         when(objectMapper.writeValueAsString(any(Publication.class)))
-            .thenThrow(new RuntimeException(exceptionMessage));
+                .thenThrow(new RuntimeException(exceptionMessage));
 
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            new DynamoDBDoiRequestsService(client, objectMapper, environment);
+                new DynamoDBDoiRequestsService(client, objectMapper, environment);
 
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest();
         insertPublication(publication);
@@ -252,24 +246,24 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequestMessage createDoiRequestMessage() {
         return new DoiRequestMessage.Builder()
-            .withTimestamp(mockedNow)
-            .withText(DEFAULT_MESSAGE)
-            .withAuthor(DynamoDBDoiRequestsService.DEFAULT_AUTHOR)
-            .build();
+                .withTimestamp(mockedNow)
+                .withText(DEFAULT_MESSAGE)
+                .withAuthor(DynamoDBDoiRequestsService.DEFAULT_AUTHOR)
+                .build();
     }
 
     private DoiRequestSummary createDoiRequestSummary(Publication publication, DoiRequest expectedDoiRequest) {
         return new DoiRequestSummary(
-            publication.getIdentifier(), publication.getOwner(), expectedDoiRequest,
-            publication.getEntityDescription());
+                publication.getIdentifier(), publication.getOwner(), expectedDoiRequest,
+                publication.getEntityDescription());
     }
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {
         return new DoiRequest.Builder()
-            .withDate(mockedNow)
-            .withMessages(Collections.singletonList(message))
-            .withStatus(DoiRequestStatus.REQUESTED)
-            .build();
+                .withDate(mockedNow)
+                .withMessages(Collections.singletonList(message))
+                .withStatus(DoiRequestStatus.REQUESTED)
+                .build();
     }
 
     private Table getTable() {
@@ -285,7 +279,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
         return super.getPublication(tableName, publicationId, mockedNow);
     }
-
 
 
 }
