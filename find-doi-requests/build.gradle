@@ -1,3 +1,4 @@
 dependencies {
     implementation project(":doi-requests-commons")
+    implementation project(":doi-request-common-constants")
 }
