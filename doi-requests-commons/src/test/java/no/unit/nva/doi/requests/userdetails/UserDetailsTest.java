@@ -21,7 +21,6 @@ public class UserDetailsTest {
 
     @BeforeEach
     public void init() throws JsonProcessingException {
-
         String requestInfoResource = IoUtils.stringFromResources(Path.of("requestInfoWithContext.json"));
         requestInfo = JsonUtils.objectMapper.readValue(requestInfoResource, RequestInfo.class);
     }
