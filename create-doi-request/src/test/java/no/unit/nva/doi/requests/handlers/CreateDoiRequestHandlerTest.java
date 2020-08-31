@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
+import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
