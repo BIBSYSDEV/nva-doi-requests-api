@@ -5,6 +5,7 @@ import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_IN
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_HASH_KEY;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_SORT_KEY;
+import static nva.commons.utils.JsonUtils.objectMapper;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -22,10 +23,13 @@ import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import no.unit.nva.model.Publication;
 import nva.commons.utils.JsonUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -39,7 +43,7 @@ public class DoiRequestsDynamoDBLocal {
 
     public static final String NVA_RESOURCES_TABLE_NAME = "nva_resources";
     public static final String BY_DOI_REQUEST_INDEX_NAME = "ByDoiRequest";
-
+    public static final Pattern REMOVE_STARTING_AND_ENDING_QUOTES = Pattern.compile("^\"(.*)\"$");
     protected AmazonDynamoDB client;
 
     protected Table getTable(String tableName) {
@@ -80,17 +84,32 @@ public class DoiRequestsDynamoDBLocal {
 
     protected void insertPublication(String tableName, Publication publication) throws JsonProcessingException {
         getTable(tableName).putItem(
-            Item.fromJSON(JsonUtils.objectMapper.writeValueAsString(publication))
+            Item.fromJSON(objectMapper.writeValueAsString(publication))
         );
     }
 
-    protected Publication getPublication(String tableName, UUID publicationId, String modifiedDate) throws IOException {
+    protected Publication getPublication(String tableName, UUID publicationId, Instant modifiedDate)
+        throws IOException {
+        String modifiedDateString = serializeForQueryValue(modifiedDate);
         Item item = getTable(tableName).getItem(
-            TABLE_HASH_KEY,publicationId.toString(),
-            TABLE_SORT_KEY, modifiedDate
+            TABLE_HASH_KEY, publicationId.toString(),
+            TABLE_SORT_KEY, modifiedDateString
         );
 
-        return JsonUtils.objectMapper.readValue(item.toJSON(),Publication.class);
+        return objectMapper.readValue(item.toJSON(), Publication.class);
+    }
+
+    private <T> String serializeForQueryValue(T serializable) throws JsonProcessingException {
+        return removeDoubleQuotesFromString(serializable);
+    }
+
+    private <T> String removeDoubleQuotesFromString(T serializable) throws JsonProcessingException {
+        String serialized = JsonUtils.objectMapper.writeValueAsString(serializable);
+        Matcher matcher = REMOVE_STARTING_AND_ENDING_QUOTES.matcher(serialized);
+        if (matcher.find()) {
+            serialized = matcher.group(1);
+        }
+        return serialized;
     }
 
     private List<GlobalSecondaryIndex> byDoiRequestSecondaryIndex(List<KeySchemaElement> byDoiRequestKeySchema,

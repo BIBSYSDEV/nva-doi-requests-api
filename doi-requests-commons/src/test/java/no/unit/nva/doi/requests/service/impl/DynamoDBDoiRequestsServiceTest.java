@@ -281,11 +281,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Publication getPublication(UUID publicationId) throws IOException {
         String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
-        return super.getPublication(tableName, publicationId, serializeInstantWithoutQuotationMarks(mockedNow));
-    }
-
-    private String serializeInstantWithoutQuotationMarks(Instant instant) throws JsonProcessingException {
-        return JsonUtils.objectMapper.writeValueAsString(instant)
-            .replaceAll("\"", "");
+        return super.getPublication(tableName, publicationId, mockedNow);
     }
 }

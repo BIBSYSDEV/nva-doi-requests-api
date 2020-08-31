@@ -13,10 +13,10 @@ import org.junit.jupiter.api.function.Executable;
 class CreateDoiRequestTest {
 
     @Test
-    void validateThrowsExceptionWhenPublicationIdIsNotAValidUuid() {
-        String invalidUUId = "Invalid";
+    void validateThrowsExceptionWhenPublicationIdIsNotValidUuid() {
+        String invalidUuid = "Invalid";
         CreateDoiRequest createDoiRequest = new CreateDoiRequest();
-        createDoiRequest.setPublicationId(invalidUUId);
+        createDoiRequest.setPublicationId(invalidUuid);
         Executable action = createDoiRequest::validate;
         BadRequestException exception = assertThrows(BadRequestException.class, action);
         assertThat(exception.getMessage(), containsString(CreateDoiRequest.INVALID_PUBLICATION_ID_ERROR));
