@@ -48,6 +48,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
     public static final String NULL_STRING_REPRESENTATION = "null";
     public static final String INVALID_USERNAME = "invalidUsername";
+    public static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     private final Environment environment;
     private final Instant mockNow = Instant.now();
     private final String publicationsTableName;
@@ -74,7 +75,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationIdIsEmpty() throws IOException {
         CreateDoiRequest doiRequest = requestWithoutPublicationId();
-        GatewayResponse<Problem> response = sendRequest(doiRequest, INVALID_USERNAME);
+        GatewayResponse<Problem> response = sendRequest(doiRequest, USERNAME_NOT_IMPORTANT);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -87,7 +88,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void handleRequestReturnsBadRequestWhenPublicationIdIsInvalid() throws IOException {
         CreateDoiRequest doiRequest = requestWithoutPublicationId();
         doiRequest.setPublicationId(INVALID_PUBLICATION_ID);
-        GatewayResponse<Problem> response = sendRequest(doiRequest, INVALID_USERNAME);
+        GatewayResponse<Problem> response = sendRequest(doiRequest, USERNAME_NOT_IMPORTANT);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -102,9 +103,13 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publicationsTableName, publication);
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        GatewayResponse<Void> response = sendRequest(doiRequest, publication.getOwner());
+        GatewayResponse<Void> response = sendRequest(doiRequest, validUsername(publication));
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CREATED)));
+    }
+
+    private String validUsername(Publication publication) {
+        return publication.getOwner();
     }
 
     @Test
@@ -114,7 +119,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        InputStream input = createRequest(doiRequest, publication.getOwner());
+        InputStream input = createRequest(doiRequest, validUsername(publication));
         ByteArrayOutputStream output = outpuStream();
         handler.handleRequest(input, output, context);
 
@@ -137,7 +142,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
-        assertThatProblemDetailsDoesRevealSensitiveInformation(details, INVALID_USERNAME, publication.getOwner());
+        assertThatProblemDetailsDoesRevealSensitiveInformation(details, INVALID_USERNAME, validUsername(publication));
 
         assertThatLogsContainReasonForForbiddenMessage(appender, publication);
     }
@@ -149,7 +154,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        GatewayResponse<Problem> response = sendRequest(doiRequest, publication.getOwner());
+        GatewayResponse<Problem> response = sendRequest(doiRequest, validUsername(publication));
         Problem problem = response.getBodyObject(Problem.class);
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CONFLICT)));
