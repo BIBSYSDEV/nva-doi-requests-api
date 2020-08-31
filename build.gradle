@@ -8,6 +8,11 @@ plugins {
 group 'no.unit.nva'
 version '1.0-SNAPSHOT'
 
+wrapper{
+    distributionType = Wrapper.DistributionType.ALL
+    gradleVersion = '6.6.1'
+}
+
 allprojects {
     repositories {
         jcenter()
