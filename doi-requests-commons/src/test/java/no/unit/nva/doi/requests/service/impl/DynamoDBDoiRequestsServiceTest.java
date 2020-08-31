@@ -219,13 +219,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThatServiceLogsCauseOfForbiddenError(testAppender, publication);
     }
 
-    private void assertThatServiceLogsCauseOfForbiddenError(TestAppender testAppender, Publication publication) {
-        String logMessage = testAppender.getMessages();
-        String expectedLogMessage = String.format(DynamoDBDoiRequestsService.WRONG_OWNER_ERROR, INVALID_USERNAME,
-            publication.getOwner());
-        assertThat(logMessage, containsString(expectedLogMessage));
-    }
-
     @Test
     public void createDoiRequestThrowsRuntimeExceptionOnSerializationError() throws JsonProcessingException {
 
@@ -245,6 +238,13 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         RuntimeException exception = assertThrows(RuntimeException.class, action);
 
         assertThat(exception.getMessage(), containsString(exceptionMessage));
+    }
+
+    private void assertThatServiceLogsCauseOfForbiddenError(TestAppender testAppender, Publication publication) {
+        String logMessage = testAppender.getMessages();
+        String expectedLogMessage = String.format(DynamoDBDoiRequestsService.WRONG_OWNER_ERROR, INVALID_USERNAME,
+            publication.getOwner());
+        assertThat(logMessage, containsString(expectedLogMessage));
     }
 
     private DoiRequestMessage extractDoiRequestMessageFromPublication(Publication updatedPublication) {

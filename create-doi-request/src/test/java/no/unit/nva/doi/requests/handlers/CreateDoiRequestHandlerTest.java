@@ -142,11 +142,6 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThatLogsContainReasonForForbiddenMessage(appender, publication);
     }
 
-    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
-        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
-        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
-    }
-
     @Test
     public void handleRequestReturnsConflictErrorWhenDoiRequestAlreadyExists()
         throws IOException {
@@ -159,6 +154,11 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CONFLICT)));
         assertThat(problem.getDetail(), containsString(DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
+    }
+
+    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
+        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
+        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
     }
 
     private void assertThatProblemDetailsDoesRevealSensitiveInformation(Problem details,
