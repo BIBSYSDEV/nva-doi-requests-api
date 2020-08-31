@@ -34,9 +34,10 @@ public final class PublicationGenerator {
             .build();
     }
 
+
     /**
-     * Publication without Doi request.
-     * @return a publication
+     * Create publication without DoiRequest.
+     * @return publication
      */
     public static Publication getPublicationWithoutDoiRequest(Clock clock) {
         return new Publication.Builder()

@@ -1,8 +1,6 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static java.util.Objects.nonNull;
-import static no.unit.nva.doi.requests.contants.ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE;
-import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
 import static nva.commons.utils.attempt.Try.attempt;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -27,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -81,12 +80,12 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                       ObjectMapper objectMapper,
                                       Environment environment,
                                       Clock clockForTimestamps) {
-        String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
-        String indexName = environment.readEnv(DOI_REQUESTS_INDEX_ENV_VARIABLE);
 
         DynamoDB dynamoDB = new DynamoDB(client);
-        this.publicationsTable = dynamoDB.getTable(tableName);
-        this.doiRequestsIndex = publicationsTable.getIndex(indexName);
+        this.publicationsTable = dynamoDB
+            .getTable(environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
+        this.doiRequestsIndex = publicationsTable
+            .getIndex(environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
         this.objectMapper = objectMapper;
         this.clockForTimestamps = clockForTimestamps;
     }
