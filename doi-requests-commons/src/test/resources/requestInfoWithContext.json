@@ -1,0 +1,11 @@
+{
+  "requestContext": {
+    "authorizer": {
+      "claims": {
+        "custom:feideId": "og@unt.no",
+        "custom:customerId": "123456",
+        "custom:applicationRoles": "Role1,Role2,Role3"
+      }
+    }
+  }
+}
