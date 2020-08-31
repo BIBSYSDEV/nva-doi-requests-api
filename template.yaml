@@ -50,7 +50,7 @@ Resources:
         info:
           title: NVA DOI Requests API
           description: NVA DOI Requests
-          version: 1
+          version: '1.0'
         paths:
           /:
             get:
@@ -92,8 +92,7 @@ Resources:
                         $ref: '#/components/schemas/Problem'
               x-amazon-apigateway-integration:
                 uri:
-                  'Fn::Sub': >-
-                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
                 responses: {}
                 httpMethod: POST
                 type: AWS_PROXY
@@ -109,10 +108,7 @@ Resources:
             responses:
               '201':
                 description: Created
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/DoiRequestSummary'
+                # no body for post. Client will see all messages when they request the details for the DoiRequest
               '400':
                 description: Bad Request
                 content:

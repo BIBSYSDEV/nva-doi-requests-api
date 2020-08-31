@@ -7,14 +7,15 @@ import java.util.Optional;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import nva.commons.utils.Environment;
 
-public class MockEnvironment {
+public final class MockEnvironment {
 
     public static final String ENV_VARIABLE_NOT_FOUND_ERROR = "Did not find env variable:";
     public static final String ALLOW_CORS = "*";
 
     /**
-     *  Mock environment with all necessary table information.
-     * @return an Environment
+     * Mock environment with all env variables necessary (database and handlers).
+     *
+     * @return Environment.
      */
     public static Environment mockEnvironment() {
         final Map<String, String> envVariables = Map
