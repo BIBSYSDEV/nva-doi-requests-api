@@ -9,6 +9,7 @@ import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
+import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 
@@ -23,5 +24,6 @@ public interface DoiRequestsService {
 
     Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws JsonProcessingException, NotFoundException;
 
-    void createDoiRequest(CreateDoiRequest createDoiRequest) throws ConflictException, NotFoundException;
+    void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
+        throws ConflictException, NotFoundException, ForbiddenException;
 }

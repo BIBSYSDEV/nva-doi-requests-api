@@ -1,19 +1,25 @@
 package no.unit.nva.doi.requests.handlers;
 
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.mockito.Mockito.mock;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
@@ -30,7 +36,8 @@ import no.unit.nva.testutils.HandlerRequestBuilder;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.handlers.GatewayResponse;
 import nva.commons.utils.Environment;
-import nva.commons.utils.JsonUtils;
+import nva.commons.utils.log.LogUtils;
+import nva.commons.utils.log.TestAppender;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +47,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
     public static final String NULL_STRING_REPRESENTATION = "null";
+    public static final String INVALID_USERNAME = "invalidUsername";
     private final Environment environment;
     private final Instant mockNow = Instant.now();
     private final String publicationsTableName;
@@ -59,14 +67,14 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void init() {
         initializeDatabase();
         Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
-        doiRequestsService = new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, environment, mockClock);
+        doiRequestsService = new DynamoDBDoiRequestsService(client, objectMapper, environment, mockClock);
         this.handler = new CreateDoiRequestHandler(environment, doiRequestsService);
     }
 
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationIdIsEmpty() throws IOException {
         CreateDoiRequest doiRequest = requestWithoutPublicationId();
-        GatewayResponse<Problem> response = sendRequest(doiRequest);
+        GatewayResponse<Problem> response = sendRequest(doiRequest, INVALID_USERNAME);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -79,7 +87,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void handleRequestReturnsBadRequestWhenPublicationIdIsInvalid() throws IOException {
         CreateDoiRequest doiRequest = requestWithoutPublicationId();
         doiRequest.setPublicationId(INVALID_PUBLICATION_ID);
-        GatewayResponse<Problem> response = sendRequest(doiRequest);
+        GatewayResponse<Problem> response = sendRequest(doiRequest, INVALID_USERNAME);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -94,7 +102,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publicationsTableName, publication);
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        GatewayResponse<Void> response = sendRequest(doiRequest);
+        GatewayResponse<Void> response = sendRequest(doiRequest, publication.getOwner());
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CREATED)));
     }
@@ -106,7 +114,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        InputStream input = createRequest(doiRequest);
+        InputStream input = createRequest(doiRequest, publication.getOwner());
         ByteArrayOutputStream output = outpuStream();
         handler.handleRequest(input, output, context);
 
@@ -117,21 +125,52 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void handleRequestReturnsForbiddenExceptionWhenInputUsernameIsNotThePublicationOwner()
+        throws IOException {
+        TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
+        Publication publication = insertPublicationWithoutDoiRequest();
+        CreateDoiRequest doiRequest = createDoiRequest(publication);
+
+        GatewayResponse<Problem> response = sendRequest(doiRequest, INVALID_USERNAME);
+
+        final Problem details = response.getBodyObject(Problem.class);
+
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
+
+        assertThatProblemDetailsDoesRevealSensitiveInformation(details, INVALID_USERNAME, publication.getOwner());
+
+        assertThatLogsContainReasonForForbiddenMessage(appender, publication);
+    }
+
+    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
+        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
+        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
+    }
+
+    @Test
     public void handleRequestReturnsConflictErrorWhenDoiRequestAlreadyExists()
         throws IOException {
         Publication publication = insertPublicationWithDoiRequest();
 
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        GatewayResponse<Problem> response = sendRequest(doiRequest);
+        GatewayResponse<Problem> response = sendRequest(doiRequest, publication.getOwner());
         Problem problem = response.getBodyObject(Problem.class);
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CONFLICT)));
         assertThat(problem.getDetail(), containsString(DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
     }
 
-    private <T> GatewayResponse<T> sendRequest(CreateDoiRequest doiRequest) throws IOException {
-        InputStream input = createRequest(doiRequest);
+    private void assertThatProblemDetailsDoesRevealSensitiveInformation(Problem details,
+                                                                        String username,
+                                                                        String publicationOwner) {
+        String errorMessage = details.getDetail();
+        assertThat(errorMessage, not(containsString(username)));
+        assertThat(errorMessage, not(containsString(publicationOwner)));
+    }
+
+    private <T> GatewayResponse<T> sendRequest(CreateDoiRequest doiRequest, String username) throws IOException {
+        InputStream input = createRequest(doiRequest, username);
         ByteArrayOutputStream output = outpuStream();
         handler.handleRequest(input, output, context);
 
@@ -173,10 +212,19 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return new CreateDoiRequest();
     }
 
-    private InputStream createRequest(CreateDoiRequest doiRequest)
+    private InputStream createRequest(CreateDoiRequest doiRequest, String username)
         throws com.fasterxml.jackson.core.JsonProcessingException {
-        return new HandlerRequestBuilder<CreateDoiRequest>(JsonUtils.objectMapper)
+        ObjectNode requestContext = objectMapper.createObjectNode();
+        requestContext
+            .putObject("authorizer")
+            .putObject("claims")
+            .put("custom:feideId", username);
+        JavaType mapType = objectMapper.getTypeFactory()
+            .constructParametricType(Map.class, String.class, Object.class);
+        Map<String, Object> requestContextMap = objectMapper.convertValue(requestContext, mapType);
+        return new HandlerRequestBuilder<CreateDoiRequest>(objectMapper)
             .withBody(doiRequest)
+            .withRequestContext(requestContextMap)
             .build();
     }
 

@@ -35,6 +35,7 @@ import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
+import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
@@ -48,7 +49,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
     public static final int SINGLE_ITEM = 1;
-    public static final String DEFAULT_AUTHOR = "unknonwn";
+    public static final String WRONG_OWNER_ERROR =
+        "User with username %s not allowed to create a DoiRequest for publication owned by %s";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -120,26 +122,21 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public void createDoiRequest(CreateDoiRequest createDoiRequest) throws ConflictException, NotFoundException {
+    public void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
+        throws ConflictException, NotFoundException, ForbiddenException {
         Publication publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
+        validateUsername(publication, username);
         if (nonNull(publication.getDoiRequest())) {
             throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
         }
         DoiRequest doiRequest = new DoiRequest.Builder()
             .withStatus(DoiRequestStatus.REQUESTED)
             .withDate(Instant.now(clockForTimestamps))
-            .addMessage(createMessage(createDoiRequest))
+            .addMessage(createMessage(createDoiRequest, username))
             .build();
+
         publication.setDoiRequest(doiRequest);
         putItem(publication);
-    }
-
-    private DoiRequestMessage createMessage(CreateDoiRequest createDoiRequest) {
-        return new DoiRequestMessage.Builder()
-            .withAuthor(DEFAULT_AUTHOR)
-            .withText(createDoiRequest.getMessage())
-            .withTimestamp(Instant.now(clockForTimestamps))
-            .build();
     }
 
     protected Optional<DoiRequestSummary> toDoiRequestSummary(Item item) {
@@ -150,6 +147,21 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             logger.info("Error mapping Item to DoiRequestSummary", e);
         }
         return Optional.ofNullable(doiRequestSummary);
+    }
+
+    private void validateUsername(Publication publication, String username) throws ForbiddenException {
+        if (!(publication.getOwner().equals(username))) {
+            logger.warn(String.format(WRONG_OWNER_ERROR, username, publication.getOwner()));
+            throw new ForbiddenException();
+        }
+    }
+
+    private DoiRequestMessage createMessage(CreateDoiRequest createDoiRequest, String author) {
+        return new DoiRequestMessage.Builder()
+            .withAuthor(author)
+            .withText(createDoiRequest.getMessage())
+            .withTimestamp(Instant.now(clockForTimestamps))
+            .build();
     }
 
     private void putItem(Publication publication) {
