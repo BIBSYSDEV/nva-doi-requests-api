@@ -3,17 +3,14 @@ repositories {
     maven { url "https://s3.eu-central-1.amazonaws.com/dynamodb-local-frankfurt/release" }
 }
 
-def awsSdkVersion = '1.11.714'
-def junit5Version = '5.6.0'
-
 dependencies {
     implementation( project (":doi-request-common-constants"))
-    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: '043c5d676211'
+    implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: project.nvaDatamodelJavaVersion
 
-    implementation group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: '78adbd6fe3'
+    implementation group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: project.nvaCommonsVersion
 
-    implementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: awsSdkVersion
-    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junit5Version
+    implementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: project.awsSdkVersion
+    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.junit5Version
     api('com.amazonaws:DynamoDBLocal:1.12.0') {
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-dynamodb'
         exclude group: 'com.amazonaws', module: 'aws-java-sdk-core'

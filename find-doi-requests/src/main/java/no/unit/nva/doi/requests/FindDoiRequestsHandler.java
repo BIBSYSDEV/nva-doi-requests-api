@@ -1,14 +1,13 @@
 package no.unit.nva.doi.requests;
 
+import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static nva.commons.utils.RequestUtils.getQueryParameter;
-import static nva.commons.utils.RequestUtils.getRequestContextParameter;
 import static org.apache.http.HttpStatus.SC_OK;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.fasterxml.jackson.core.JsonPointer;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,6 +19,7 @@ import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
@@ -30,11 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsResponse> {
 
-    public static final String ROLE = "role";
-    public static final JsonPointer FEIDE_ID = JsonPointer.compile("/authorizer/claims/custom:feideId");
-    public static final JsonPointer CUSTOMER_ID = JsonPointer.compile("/authorizer/claims/custom:customerId");
-    public static final JsonPointer APPLICATION_ROLES = JsonPointer
-        .compile("/authorizer/claims/custom:applicationRoles");
+
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
     public static final String CREATOR = "creator";
     public static final String CURATOR = "curator";
@@ -74,10 +70,10 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String assignedRoles;
         String customerId;
         try {
-            user = getRequestContextParameter(requestInfo, FEIDE_ID);
+            user = UserDetails.getUsername(requestInfo);
+            assignedRoles = UserDetails.getAssignedRoles(requestInfo);
+            customerId = UserDetails.getCustomerId(requestInfo);
             requestedRole = getQueryParameter(requestInfo, ROLE);
-            assignedRoles = getRequestContextParameter(requestInfo, APPLICATION_ROLES);
-            customerId = getRequestContextParameter(requestInfo, CUSTOMER_ID);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
         }

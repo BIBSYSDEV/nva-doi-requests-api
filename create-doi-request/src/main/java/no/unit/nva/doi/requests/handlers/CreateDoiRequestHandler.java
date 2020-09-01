@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
@@ -51,7 +52,8 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
     protected Void processInput(CreateDoiRequest input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
         input.validate();
-        doiRequestService.createDoiRequest(input);
+        String username = UserDetails.getUsername(requestInfo);
+        doiRequestService.createDoiRequest(input, username);
         return null;
     }
 
