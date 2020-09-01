@@ -150,6 +150,8 @@ Resources:
               properties:
                 publicationId:
                   type: string
+                message:
+                  type: string
             Problem:
               type: object
               properties:
