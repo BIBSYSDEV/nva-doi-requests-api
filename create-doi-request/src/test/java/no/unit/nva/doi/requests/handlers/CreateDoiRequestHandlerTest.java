@@ -142,7 +142,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
-        assertThatProblemDetailsDoesRevealSensitiveInformation(details, INVALID_USERNAME, validUsername(publication));
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(details, INVALID_USERNAME,
+            validUsername(publication));
 
         assertThatLogsContainReasonForForbiddenMessage(appender, publication);
     }
@@ -166,9 +167,9 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(appender.getMessages(), containsString(expectedErrorMessage));
     }
 
-    private void assertThatProblemDetailsDoesRevealSensitiveInformation(Problem details,
-                                                                        String username,
-                                                                        String publicationOwner) {
+    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details,
+                                                                           String username,
+                                                                           String publicationOwner) {
         String errorMessage = details.getDetail();
         assertThat(errorMessage, not(containsString(username)));
         assertThat(errorMessage, not(containsString(publicationOwner)));
