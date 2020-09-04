@@ -121,12 +121,12 @@ Resources:
                     application/json:
                       schema:
                         $ref: '#/components/schemas/Problem'
-                x-amazon-apigateway-integration:
-                  uri:
-                    Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-                  responses: { }
-                  httpMethod: POST
-                  type: AWS_PROXY
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
         components:
           schemas:
             DoiRequestSummary:
