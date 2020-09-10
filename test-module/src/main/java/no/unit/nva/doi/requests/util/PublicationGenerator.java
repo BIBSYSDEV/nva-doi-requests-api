@@ -25,15 +25,18 @@ public final class PublicationGenerator {
      * @return publication
      */
     public static Publication getPublicationWithDoiRequest() {
-        return getPublicationWithoutDoiRequest().copy()
+        return getPublicationWithDoiRequest(Clock.systemDefaultZone());
+    }
+
+    public static Publication getPublicationWithDoiRequest(Clock clock) {
+        return getPublicationWithoutDoiRequest(clock).copy()
             .withDoiRequest(new DoiRequest.Builder()
-                .withDate(Instant.now())
+                .withDate(Instant.now(clock))
                 .withStatus(DoiRequestStatus.REQUESTED)
                 .build()
             )
             .build();
     }
-
 
     /**
      * Create publication without DoiRequest.

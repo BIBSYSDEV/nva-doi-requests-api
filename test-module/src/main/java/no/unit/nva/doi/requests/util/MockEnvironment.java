@@ -22,7 +22,10 @@ public final class MockEnvironment {
             .of(ALLOWED_ORIGIN_ENV, ALLOW_CORS,
                 ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE,
                 DoiRequestsDynamoDBLocal.NVA_RESOURCES_TABLE_NAME,
-                ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE, DoiRequestsDynamoDBLocal.BY_DOI_REQUEST_INDEX_NAME);
+                ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE, DoiRequestsDynamoDBLocal.BY_DOI_REQUEST_INDEX_NAME,
+                ServiceConstants.API_HOST_ENV_VARIABLE, "mocked-hostname.example.net",
+                ServiceConstants.API_SCHEME_ENV_VARIABLE, "https"
+            );
         return new Environment() {
             @Override
             public Optional<String> readEnvOpt(String variableName) {

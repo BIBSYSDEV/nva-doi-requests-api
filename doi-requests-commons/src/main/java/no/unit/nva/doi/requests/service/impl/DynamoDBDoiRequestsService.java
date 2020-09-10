@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
+import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
@@ -139,6 +140,25 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
+    @Override
+    public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername) throws NotFoundException, ForbiddenException, BadRequestException {
+        Publication publication = fetchPublication(publicationID);
+        validateUsername(publication, requestedByUsername);
+
+        if (publication.getDoiRequest() == null) {
+            throw new BadRequestException("You must create a DoiRequest before you can update status on it");
+        }
+
+        Instant updatedAt = Instant.now(clockForTimestamps);
+        DoiRequest doiRequest = new DoiRequest.Builder()
+                .withStatus(requestedStatusChange)
+                .withDate(updatedAt)
+                .build();
+        publication.setDoiRequest(doiRequest);
+        publication.setModifiedDate(updatedAt);
+        putItem(publication);
+    }
+
     protected Optional<DoiRequestSummary> toDoiRequestSummary(Item item) {
         DoiRequestSummary doiRequestSummary = null;
         try {
@@ -176,7 +196,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
-            .orElseThrow(() -> new NotFoundException(publicationId.toString()));
+            .orElseThrow(() -> new NotFoundException(String.format("Publication with identifier %s not found.",
+                publicationId.toString())));
     }
 
     private Publication itemToPublication(Item item) {

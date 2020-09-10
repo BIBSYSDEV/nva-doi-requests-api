@@ -5,7 +5,7 @@ repositories {
 
 
 dependencies {
-    api group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: project.nvaCommonsVersion
+    api group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: '1.0-SNAPSHOT' // project.nvaCommonsVersion
     api group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: project.nvaDatamodelJavaVersion
     api group: 'io.mikael', name: 'urlbuilder', version: '2.0.9'
     api group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: project.jacksonVersion
