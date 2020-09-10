@@ -1,24 +1,25 @@
 package no.unit.nva.doi.requests;
 
+import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
-import static no.unit.nva.model.util.OrgNumberMapper.toCristinId;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static nva.commons.utils.RequestUtils.getQueryParameter;
-import static nva.commons.utils.RequestUtils.getRequestContextParameter;
 import static org.apache.http.HttpStatus.SC_OK;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
-import com.fasterxml.jackson.core.JsonPointer;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
@@ -29,14 +30,11 @@ import org.slf4j.LoggerFactory;
 
 public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsResponse> {
 
-    public static final String ROLE = "role";
-    public static final JsonPointer FEIDE_ID = JsonPointer.compile("/authorizer/claims/custom:feideId");
-    public static final JsonPointer ORG_NUMBER = JsonPointer.compile("/authorizer/claims/custom:orgNumber");
-    public static final JsonPointer APPLICATION_ROLES = JsonPointer
-        .compile("/authorizer/claims/custom:applicationRoles");
+
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
     public static final String CREATOR = "creator";
     public static final String CURATOR = "curator";
+    public static final String ROLES_SEPARATOR = ",";
 
     private DoiRequestsService doiRequestsService;
 
@@ -70,29 +68,29 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String user;
         String requestedRole;
         String assignedRoles;
-        String orgNumber;
+        String customerId;
         try {
-            user = getRequestContextParameter(requestInfo, FEIDE_ID);
+            user = UserDetails.getUsername(requestInfo);
+            assignedRoles = UserDetails.getAssignedRoles(requestInfo);
+            customerId = UserDetails.getCustomerId(requestInfo);
             requestedRole = getQueryParameter(requestInfo, ROLE);
-            assignedRoles = getRequestContextParameter(requestInfo, APPLICATION_ROLES);
-            orgNumber = getRequestContextParameter(requestInfo, ORG_NUMBER);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
         }
 
         verifyRoles(requestedRole, assignedRoles);
 
-        List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, toCristinId(orgNumber));
+        List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, URI.create(customerId));
         return DoiRequestsResponse.of(doiRequests);
     }
 
     private List<DoiRequestSummary> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
         throws ApiGatewayException {
         List<DoiRequestSummary> doiRequests;
-        if (requestedRole.equals(CREATOR)) {
+        if (requestedRole.equalsIgnoreCase(CREATOR)) {
             doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(
                 publisher, REQUESTED, user);
-        } else if (requestedRole.equals(CURATOR)) {
+        } else if (requestedRole.equalsIgnoreCase(CURATOR)) {
             doiRequests = doiRequestsService.findDoiRequestsByStatus(
                 publisher, REQUESTED);
         } else {
@@ -102,7 +100,11 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     }
 
     private void verifyRoles(String requestedRole, String assignedRoles) throws NotAuthorizedException {
-        if (!assignedRoles.contains(requestedRole)) {
+        Optional<String> foundRole = Arrays.stream(assignedRoles.split(ROLES_SEPARATOR))
+            .filter(role -> role.equalsIgnoreCase(requestedRole))
+            .findAny();
+
+        if (foundRole.isEmpty()) {
             logger.info(String.format("Role '%s' not found among roles '%s'", requestedRole, assignedRoles));
             throw new NotAuthorizedException("User is missing requested role: " + requestedRole);
         }

@@ -39,7 +39,6 @@ Parameters:
   DoiRequestsIndexName:
     Type: String
     Description: Reference to index for DOI Requests
-
 Resources:
   NvaDoiRequestsApi:
     Type: AWS::Serverless::Api
@@ -47,85 +46,130 @@ Resources:
       StageName: Prod
       EndpointConfiguration: REGIONAL
       DefinitionBody:
-        swagger: '2.0'
+        openapi: 3.0.3
         info:
           title: NVA DOI Requests API
+          description: NVA DOI Requests
           version: '1.0'
         paths:
           /:
             get:
               summary: Find DOI Requests By Role
-              consumes:
-                - application/json
-              produces:
-                - application/json
               security:
                 - CognitoUserPool: []
               parameters:
                 - in: query
                   name: role
-                  type: string
                   description: The role used to find DOI requests for.
-              x-amazon-apigateway-integration:
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-                responses: {}
-                httpMethod: POST
-                type: AWS_PROXY
+                  schema:
+                    type: string
               responses:
                 '200':
                   description: OK
-                  schema:
-                    type: list
-                    items:
-                      $ref: '#/definitions/DoiRequestSummary'
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DoiRequestSummary'
                 '400':
                   description: Bad Request
-                  schema:
-                    $ref: '#/definitions/Problem'
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
                 '404':
                   description: Not Found
-                  schema:
-                    $ref: '#/definitions/Problem'
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
                 '502':
                   description: Bad Gateway
-                  schema:
-                    $ref: '#/definitions/Problem'
-        definitions:
-          DoiRequestSummary:
-            type: object
-            properties:
-              doiRequestStatus:
-                type: string
-              doiRequestDate:
-                type: string
-                format: date-time
-              publicationIdentifier:
-                type: string
-                format: uuid
-              publicationTitle:
-                type: string
-              publicationCreator:
-                type: string
-          Problem:
-            type: object
-            properties:
-              title:
-                type: string
-              status:
-                type: integer
-              detail:
-                type: string
-        securityDefinitions:
-          CognitoUserPool:
-            type: apiKey
-            name: Authorization
-            in: header
-            x-amazon-apigateway-authtype: cognito_user_pools
-            x-amazon-apigateway-authorizer:
-              type: cognito_user_pools
-              providerARNs:
-                - !Ref CognitoAuthorizerArn
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
+            post:
+              summary: Create new Doi request
+              security:
+                - CognitoUserPool: [ ]
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CreateDoiRequest'
+              responses:
+                '201':
+                  description: Created
+                  # no body for post. Client will see all messages when they request the details for the DoiRequest
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '404':
+                  description: Not Found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaCreateDoiRequestHandler.Arn}/invocations
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
+        components:
+          schemas:
+            DoiRequestSummary:
+              type: object
+              properties:
+                doiRequestStatus:
+                  type: string
+                doiRequestDate:
+                  type: string
+                  format: date-time
+                publicationIdentifier:
+                  type: string
+                  format: uuid
+                publicationTitle:
+                  type: string
+                publicationCreator:
+                  type: string
+            CreateDoiRequest:
+              type: object
+              properties:
+                publicationId:
+                  type: string
+                message:
+                  type: string
+            Problem:
+              type: object
+              properties:
+                title:
+                  type: string
+                status:
+                  type: integer
+                detail:
+                  type: string
+          securitySchemes:
+            CognitoUserPool:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: cognito_user_pools
+              x-amazon-apigateway-authorizer:
+                type: cognito_user_pools
+                providerARNs:
+                  - !Ref CognitoAuthorizerArn
   NvaFindDoiRequestsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -148,6 +192,28 @@ Resources:
             Path: /
             Method: get
             RestApiId: !Ref NvaDoiRequestsApi
+  NvaCreateDoiRequestHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: create-doi-request
+      Handler: no.unit.nva.doi.requests.handlers.CreateDoiRequestHandler::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DoiRequestsTableName
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+            RestApiId: !Ref NvaDoiRequestsApi
   NvaDoiRequestsPathMapping:
     Type: AWS::ApiGateway::BasePathMapping
     Properties:
@@ -155,3 +221,19 @@ Resources:
       DomainName: !Ref CustomDomain
       RestApiId: !Ref NvaDoiRequestsApi
       Stage: !Ref NvaDoiRequestsApi.Stage
+  GatewayResponseDefault4XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+      ResponseType: DEFAULT_4XX
+      RestApiId: !Ref NvaDoiRequestsApi
+  GatewayResponseDefault5XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+      ResponseType: DEFAULT_5XX
+      RestApiId: !Ref NvaDoiRequestsApi
