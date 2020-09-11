@@ -26,13 +26,13 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
     private final String apiHost;
 
     public UpdateDoiRequestHandler(Environment environment, DoiRequestsService doiRequestsService) {
-        super(UpdateDoiRequest.class, environment, defaultLogger());
+        super(UpdateDoiRequest.class, environment, initializeLogger());
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
         this.doiRequestService = doiRequestsService;
     }
 
-    private static Logger defaultLogger() {
+    private static Logger initializeLogger() {
         return LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     }
 
@@ -69,7 +69,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
            username = UserDetails.getUsername(requestInfo);
         } catch (IllegalArgumentException e) {
             // IllegalArgumentExpcetion: Missing from requestContext: /authorizer/claims/custom:feideId
-            defaultLogger().warn(e.getMessage());
+            logger.warn(e.getMessage());
             throw new ForbiddenException();
         }
         return username;
