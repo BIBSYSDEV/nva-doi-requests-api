@@ -35,8 +35,8 @@ public class ApiTask {
             return false;
         }
         ApiTask apiTask = (ApiTask) o;
-        return Objects.equals(getHref(), apiTask.getHref()) &&
-            Objects.equals(getIdentifier(), apiTask.getIdentifier());
+        return Objects.equals(getHref(), apiTask.getHref())
+            && Objects.equals(getIdentifier(), apiTask.getIdentifier());
     }
 
     @Override

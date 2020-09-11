@@ -35,7 +35,7 @@ public class ApiUpdateDoiRequest extends AbstractDoiRequest {
     }
 
     @JacocoGenerated
-    public void setDOIRequestStatus(DoiRequestStatus status) {
+    public void setDoiRequestStatus(DoiRequestStatus status) {
         this.doiRequestStatus = status;
     }
 }

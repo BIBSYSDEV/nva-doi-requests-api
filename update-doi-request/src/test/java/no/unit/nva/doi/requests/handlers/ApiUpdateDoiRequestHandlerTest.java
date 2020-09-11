@@ -27,8 +27,8 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.handlers.model.ApiTask;
 import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
-import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
+import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.MockEnvironment;
@@ -114,7 +114,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var updateDoiRequest = new ApiUpdateDoiRequest();
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
         updateDoiRequest.setPublicationId(notExistingPublicationIdentifier);
-        updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
         GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
 
@@ -133,7 +133,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
         GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, publication.getOwner());
 
@@ -154,7 +154,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, INVALID_USERNAME);
 
@@ -177,7 +177,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
         var requestContext = objectMapper.createObjectNode();
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, requestContext);
@@ -212,7 +212,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         var updateRequest = new ApiUpdateDoiRequest();
         updateRequest.setPublicationId(publication.getIdentifier().toString());
-        updateRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
+        updateRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
 
         var output = outpuStream();
@@ -298,7 +298,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, String username,
+    private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest,
+                                               String username,
                                                Map<String, String> pathParameters) throws IOException {
         InputStream input = createRequest(doiRequest, username, pathParameters);
         ByteArrayOutputStream output = outpuStream();
@@ -307,7 +308,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private InputStream createRequest(ApiUpdateDoiRequest doiRequest, String username, Map<String, String> pathParameters)
+    private InputStream createRequest(ApiUpdateDoiRequest doiRequest,
+                                      String username,
+                                      Map<String, String> pathParameters)
         throws JsonProcessingException {
         var requestContext = objectMapper.createObjectNode();
         requestContext
