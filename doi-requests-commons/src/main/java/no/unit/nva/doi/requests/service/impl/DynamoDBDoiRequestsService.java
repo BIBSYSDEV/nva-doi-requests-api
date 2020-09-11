@@ -144,18 +144,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername) throws NotFoundException, ForbiddenException, BadRequestException {
         Publication publication = fetchPublication(publicationID);
         validateUsername(publication, requestedByUsername);
-
-        if (publication.getDoiRequest() == null) {
-            throw new BadRequestException("You must create a DoiRequest before you can update status on it");
-        }
-
-        Instant updatedAt = Instant.now(clockForTimestamps);
-        DoiRequest doiRequest = new DoiRequest.Builder()
-                .withStatus(requestedStatusChange)
-                .withDate(updatedAt)
-                .build();
-        publication.setDoiRequest(doiRequest);
-        publication.setModifiedDate(updatedAt);
+        publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
     }
 

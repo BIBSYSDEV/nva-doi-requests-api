@@ -141,7 +141,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_BAD_REQUEST)));
 
         assertThat(details.getDetail(),
-            containsString("You must create a DoiRequest before you can update status on it"));
+            containsString("You must initiate creation of a DoiRequest before you can update it."));
     }
 
     @Test

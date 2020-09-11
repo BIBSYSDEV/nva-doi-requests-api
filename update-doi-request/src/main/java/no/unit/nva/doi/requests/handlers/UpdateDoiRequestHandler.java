@@ -46,7 +46,11 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
         var requestedStatusChange = input.getDOIRequestStatus()
                 .orElseThrow(() -> new BadRequestException("You must request changes to do"));
 
-        doiRequestService.updateDoiRequest(publicationId, requestedStatusChange, username);
+        try {
+            doiRequestService.updateDoiRequest(publicationId, requestedStatusChange, username);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw new BadRequestException(e.getMessage());
+        }
 
         return ApiUpdateDoiResponse.newBuilder().withTask(ApiTask.newBuilder()
             .withHref(getContentLocation(publicationId))
