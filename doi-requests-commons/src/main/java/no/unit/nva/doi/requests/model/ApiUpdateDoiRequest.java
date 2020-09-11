@@ -6,7 +6,7 @@ import nva.commons.utils.JacocoGenerated;
 import java.util.Objects;
 import java.util.Optional;
 
-public class UpdateDoiRequest extends AbstractDoiRequest {
+public class ApiUpdateDoiRequest extends AbstractDoiRequest {
 
     private DoiRequestStatus doiRequestStatus;
 
@@ -22,10 +22,10 @@ public class UpdateDoiRequest extends AbstractDoiRequest {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof UpdateDoiRequest)) {
+        if (!(o instanceof ApiUpdateDoiRequest)) {
             return false;
         }
-        UpdateDoiRequest that = (UpdateDoiRequest) o;
+        ApiUpdateDoiRequest that = (ApiUpdateDoiRequest) o;
         return doiRequestStatus == that.doiRequestStatus && Objects.equals(getPublicationId(), that.getPublicationId());
     }
 

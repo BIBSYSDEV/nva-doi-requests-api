@@ -28,7 +28,7 @@ import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.handlers.model.ApiTask;
 import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
-import no.unit.nva.doi.requests.model.UpdateDoiRequest;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.MockEnvironment;
@@ -49,7 +49,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.zalando.problem.Problem;
 
-public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
+public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
     private static final String INVALID_USERNAME = "invalidUsername";
     public static final String NULL_STRING_REPRESENTATION = "null";
@@ -65,7 +65,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private UpdateDoiRequestHandler handler;
 
 
-    public UpdateDoiRequestHandlerTest() {
+    public ApiUpdateDoiRequestHandlerTest() {
         environment = MockEnvironment.mockEnvironment();
         publicationsTableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
         context = mock(Context.class);
@@ -111,7 +111,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsNotFoundWhenPublicationDoesNotExist() throws IOException {
-        var updateDoiRequest = new UpdateDoiRequest();
+        var updateDoiRequest = new ApiUpdateDoiRequest();
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
         updateDoiRequest.setPublicationId(notExistingPublicationIdentifier);
         updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
@@ -131,7 +131,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new UpdateDoiRequest();
+        var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
         updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
 
@@ -152,7 +152,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Publication publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new UpdateDoiRequest();
+        var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
         updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
 
@@ -175,7 +175,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Publication publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new UpdateDoiRequest();
+        var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
         updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
 
@@ -210,7 +210,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                 ZoneId.systemDefault()));
 
 
-        var updateRequest = new UpdateDoiRequest();
+        var updateRequest = new ApiUpdateDoiRequest();
         updateRequest.setPublicationId(publication.getIdentifier().toString());
         updateRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
 
@@ -275,11 +275,11 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return publication;
     }
 
-    private UpdateDoiRequest requestWithoutPublicationId() {
-        return new UpdateDoiRequest();
+    private ApiUpdateDoiRequest requestWithoutPublicationId() {
+        return new ApiUpdateDoiRequest();
     }
 
-    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, String username) throws IOException {
+    private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, String username) throws IOException {
         var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
         InputStream input = createRequest(doiRequest, username, pathParams);
         ByteArrayOutputStream output = outpuStream();
@@ -288,7 +288,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, JsonNode requestContext)
+    private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, JsonNode requestContext)
         throws IOException {
         var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
         InputStream input = createRequest(doiRequest, pathParams, requestContext);
@@ -298,7 +298,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, String username,
+    private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, String username,
                                                Map<String, String> pathParameters) throws IOException {
         InputStream input = createRequest(doiRequest, username, pathParameters);
         ByteArrayOutputStream output = outpuStream();
@@ -307,7 +307,7 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private InputStream createRequest(UpdateDoiRequest doiRequest, String username, Map<String, String> pathParameters)
+    private InputStream createRequest(ApiUpdateDoiRequest doiRequest, String username, Map<String, String> pathParameters)
         throws JsonProcessingException {
         var requestContext = objectMapper.createObjectNode();
         requestContext
@@ -318,13 +318,13 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return createRequest(doiRequest, pathParameters, requestContext);
     }
 
-    private InputStream createRequest(UpdateDoiRequest doiRequest,
+    private InputStream createRequest(ApiUpdateDoiRequest doiRequest,
                                       Map<String, String> pathParameters,
                                       JsonNode requestContext) throws JsonProcessingException {
         var mapType = objectMapper.getTypeFactory()
             .constructParametricType(Map.class, String.class, Object.class);
         Map<String, Object> requestContextMap = objectMapper.convertValue(requestContext, mapType);
-        return new HandlerRequestBuilder<UpdateDoiRequest>(objectMapper)
+        return new HandlerRequestBuilder<ApiUpdateDoiRequest>(objectMapper)
             .withBody(doiRequest)
             .withPathParameters(pathParameters)
             .withRequestContext(requestContextMap)

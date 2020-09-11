@@ -6,7 +6,7 @@ import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.handlers.model.ApiTask;
 import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
-import no.unit.nva.doi.requests.model.UpdateDoiRequest;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
@@ -18,7 +18,7 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest, ApiUpdateDoiResponse> {
+public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiRequest, ApiUpdateDoiResponse> {
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
     private final DoiRequestsService doiRequestService;
@@ -26,7 +26,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
     private final String apiHost;
 
     public UpdateDoiRequestHandler(Environment environment, DoiRequestsService doiRequestsService) {
-        super(UpdateDoiRequest.class, environment, initializeLogger());
+        super(ApiUpdateDoiRequest.class, environment, initializeLogger());
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
         this.doiRequestService = doiRequestsService;
@@ -38,7 +38,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
 
 
     @Override
-    protected ApiUpdateDoiResponse processInput(UpdateDoiRequest input, RequestInfo requestInfo, Context context)
+    protected ApiUpdateDoiResponse processInput(ApiUpdateDoiRequest input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
         input.validate();
         String username = getUserName(requestInfo);
@@ -81,7 +81,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
     }
 
     @Override
-    protected Integer getSuccessStatusCode(UpdateDoiRequest input, ApiUpdateDoiResponse output) {
+    protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, ApiUpdateDoiResponse output) {
         return HttpStatus.SC_ACCEPTED;
     }
 }
