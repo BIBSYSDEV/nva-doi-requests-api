@@ -1,8 +1,29 @@
 package no.unit.nva.doi.requests.handlers;
 
+import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
+import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static nva.commons.utils.JsonUtils.objectMapper;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.core.IsNot.not;
+import static org.hamcrest.core.StringContains.containsString;
+import static org.mockito.Mockito.mock;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.handlers.model.ApiTask;
 import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
@@ -27,28 +48,6 @@ import org.hamcrest.core.IsEqual;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.zalando.problem.Problem;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-
-import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
-import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT;
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
-import static nva.commons.utils.JsonUtils.objectMapper;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.core.IsNot.not;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.mockito.Mockito.mock;
 
 public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
@@ -99,7 +98,8 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void handleRequestReturnsBadRequestWhenNoPublicationId() throws IOException {
         var updateDoiRequest = requestWithoutPublicationId();
 
-        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT, Collections.emptyMap());
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT,
+            Collections.emptyMap());
 
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_BAD_REQUEST)));
@@ -128,7 +128,8 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationDoesNotHaveDoiRequest() throws IOException {
-        var publication = insertPublicationWithoutDoiRequest(Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+        var publication = insertPublicationWithoutDoiRequest(
+            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
         var updateDoiRequest = new UpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
@@ -147,8 +148,9 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsForbiddenExceptionWhenInputUsernameIsNotThePublicationOwner()
             throws IOException {
-        TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
-        Publication publication = insertPublicationWithoutDoiRequest(Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+        final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
+        Publication publication = insertPublicationWithoutDoiRequest(
+            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
         var updateDoiRequest = new UpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
@@ -169,16 +171,16 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsForbiddenExceptionWhenUsernameIsNotInRequestContext()
         throws IOException {
-        TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
-        Publication publication = insertPublicationWithoutDoiRequest(Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+        final TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
+        Publication publication = insertPublicationWithoutDoiRequest(
+            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
         var updateDoiRequest = new UpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
         updateDoiRequest.setDOIRequestStatus(DoiRequestStatus.APPROVED);
 
         var requestContext = objectMapper.createObjectNode();
-        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT,
-            requestContext);
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, requestContext);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -253,8 +255,8 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                 publication.getEntityDescription());
     }
 
-
-    private Publication insertPublicationWithDoiRequest(Clock clock) throws com.fasterxml.jackson.core.JsonProcessingException {
+    private Publication insertPublicationWithDoiRequest(Clock clock)
+        throws com.fasterxml.jackson.core.JsonProcessingException {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest(clock)
             .copy()
             .withCreatedDate(mockOneHourBefore)
@@ -263,7 +265,8 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return publication;
     }
 
-    private Publication insertPublicationWithoutDoiRequest(Clock clock) throws com.fasterxml.jackson.core.JsonProcessingException {
+    private Publication insertPublicationWithoutDoiRequest(Clock clock)
+        throws com.fasterxml.jackson.core.JsonProcessingException {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock)
                 .copy()
                 .withCreatedDate(mockOneHourBefore)
@@ -284,16 +287,19 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         return GatewayResponse.fromOutputStream(output);
     }
-    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, String username, JsonNode requestContext) throws IOException {
+
+    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, JsonNode requestContext)
+        throws IOException {
         var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
-        InputStream input = createRequest(doiRequest, username, pathParams, requestContext);
+        InputStream input = createRequest(doiRequest, pathParams, requestContext);
         ByteArrayOutputStream output = outpuStream();
         handler.handleRequest(input, output, context);
 
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, String username, Map<String, String> pathParameters) throws IOException {
+    private <T> GatewayResponse<T> sendRequest(UpdateDoiRequest doiRequest, String username,
+                                               Map<String, String> pathParameters) throws IOException {
         InputStream input = createRequest(doiRequest, username, pathParameters);
         ByteArrayOutputStream output = outpuStream();
         handler.handleRequest(input, output, context);
@@ -301,24 +307,22 @@ public class UpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-
-    private InputStream createRequest(UpdateDoiRequest doiRequest, String username, Map<String,String> pathParameters) throws JsonProcessingException {
+    private InputStream createRequest(UpdateDoiRequest doiRequest, String username, Map<String, String> pathParameters)
+        throws JsonProcessingException {
         var requestContext = objectMapper.createObjectNode();
         requestContext
                 .putObject("authorizer")
                 .putObject("claims")
                 .put("custom:feideId", username);
 
-        return createRequest(doiRequest, username, pathParameters, requestContext);
+        return createRequest(doiRequest, pathParameters, requestContext);
     }
 
-    private InputStream createRequestWithoutAuthroizer(UpdateDoiRequest doiRequest, String username, Map<String,String> pathParameters) throws JsonProcessingException {
-        var requestContext = objectMapper.createObjectNode();
-        return createRequest(doiRequest, username, pathParameters, requestContext);
-    }
-
-    private InputStream createRequest(UpdateDoiRequest doiRequest, String username, Map<String,String> pathParameters, JsonNode requestContext) throws JsonProcessingException {
-        var mapType = objectMapper.getTypeFactory().constructParametricType(Map.class, String.class, Object.class);
+    private InputStream createRequest(UpdateDoiRequest doiRequest,
+                                      Map<String, String> pathParameters,
+                                      JsonNode requestContext) throws JsonProcessingException {
+        var mapType = objectMapper.getTypeFactory()
+            .constructParametricType(Map.class, String.class, Object.class);
         Map<String, Object> requestContextMap = objectMapper.convertValue(requestContext, mapType);
         return new HandlerRequestBuilder<UpdateDoiRequest>(objectMapper)
             .withBody(doiRequest)

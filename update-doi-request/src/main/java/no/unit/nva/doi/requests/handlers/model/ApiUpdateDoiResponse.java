@@ -10,7 +10,7 @@ public class ApiUpdateDoiResponse {
     private ApiTask task;
 
     @JsonCreator
-    public ApiUpdateDoiResponse(@JsonProperty(value = "task") ApiTask task) {
+    public ApiUpdateDoiResponse(@JsonProperty("task") ApiTask task) {
         this.task = task;
     }
 

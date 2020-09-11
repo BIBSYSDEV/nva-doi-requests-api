@@ -38,12 +38,13 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
 
 
     @Override
-    protected ApiUpdateDoiResponse processInput(UpdateDoiRequest input, RequestInfo requestInfo, Context context) throws ApiGatewayException {
+    protected ApiUpdateDoiResponse processInput(UpdateDoiRequest input, RequestInfo requestInfo, Context context)
+        throws ApiGatewayException {
         input.validate();
         String username = getUserName(requestInfo);
         UUID publicationId = getPublicationIdentifier(requestInfo);
 
-        var requestedStatusChange = input.getDOIRequestStatus()
+        var requestedStatusChange = input.getDoiRequestStatus()
                 .orElseThrow(() -> new BadRequestException("You must request changes to do"));
 
         try {
@@ -70,7 +71,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<UpdateDoiRequest,
     private String getUserName(RequestInfo requestInfo) throws ForbiddenException {
         String username;
         try {
-           username = UserDetails.getUsername(requestInfo);
+            username = UserDetails.getUsername(requestInfo);
         } catch (IllegalArgumentException e) {
             // IllegalArgumentExpcetion: Missing from requestContext: /authorizer/claims/custom:feideId
             logger.warn(e.getMessage());

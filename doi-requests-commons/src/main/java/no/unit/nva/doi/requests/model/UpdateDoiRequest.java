@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public class UpdateDoiRequest extends AbstractDoiRequest {
 
-    private DoiRequestStatus doiRequestStatus = null;
+    private DoiRequestStatus doiRequestStatus;
 
     @Override
     @JacocoGenerated
@@ -30,7 +30,7 @@ public class UpdateDoiRequest extends AbstractDoiRequest {
     }
 
     @JacocoGenerated
-    public Optional<DoiRequestStatus> getDOIRequestStatus() {
+    public Optional<DoiRequestStatus> getDoiRequestStatus() {
         return Optional.ofNullable(this.doiRequestStatus);
     }
 

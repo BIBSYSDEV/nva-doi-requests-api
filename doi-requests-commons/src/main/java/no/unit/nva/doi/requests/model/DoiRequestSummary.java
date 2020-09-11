@@ -40,19 +40,7 @@ public class DoiRequestSummary {
         this.publicationTitle = entityDescription.getMainTitle();
         this.publicationOwner = owner;
     }
-
-    @Override
-    @JacocoGenerated
-    public String toString() {
-        return "DoiRequestSummary{" +
-            "doiRequestStatus=" + doiRequestStatus +
-            ", doiRequestDate=" + doiRequestDate +
-            ", publicationIdentifier=" + publicationIdentifier +
-            ", publicationTitle='" + publicationTitle + '\'' +
-            ", publicationOwner='" + publicationOwner + '\'' +
-            '}';
-    }
-
+    
     /**
      * Creates DoiRequest summary from a publication.
      *

@@ -11,8 +11,8 @@ public class ApiTask {
     private final String identifier;
 
     @JsonCreator
-    public ApiTask(@JsonProperty(value = "href") String href,
-                   @JsonProperty(value = "identifier") String identifier) {
+    public ApiTask(@JsonProperty("href") String href,
+                   @JsonProperty("identifier") String identifier) {
         this.href = href;
         this.identifier = identifier;
     }
