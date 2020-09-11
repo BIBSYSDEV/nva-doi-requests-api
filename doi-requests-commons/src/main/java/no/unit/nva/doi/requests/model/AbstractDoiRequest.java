@@ -6,6 +6,7 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import nva.commons.utils.JacocoGenerated;
 
+@SuppressWarnings("AbstractClassWithoutAbstractMethod")
 public abstract class AbstractDoiRequest {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
