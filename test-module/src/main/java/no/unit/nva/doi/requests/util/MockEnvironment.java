@@ -1,10 +1,15 @@
 package no.unit.nva.doi.requests.util;
 
+import static no.unit.nva.doi.requests.contants.ServiceConstants.API_HOST_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.contants.ServiceConstants.API_SCHEME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.contants.ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal.BY_DOI_REQUEST_INDEX_NAME;
+import static no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal.NVA_RESOURCES_TABLE_NAME;
 import static nva.commons.handlers.ApiGatewayHandler.ALLOWED_ORIGIN_ENV;
 
 import java.util.Map;
 import java.util.Optional;
-import no.unit.nva.doi.requests.contants.ServiceConstants;
 import nva.commons.utils.Environment;
 
 public final class MockEnvironment {
@@ -20,11 +25,10 @@ public final class MockEnvironment {
     public static Environment mockEnvironment() {
         final Map<String, String> envVariables = Map
             .of(ALLOWED_ORIGIN_ENV, ALLOW_CORS,
-                ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE,
-                DoiRequestsDynamoDBLocal.NVA_RESOURCES_TABLE_NAME,
-                ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE, DoiRequestsDynamoDBLocal.BY_DOI_REQUEST_INDEX_NAME,
-                ServiceConstants.API_HOST_ENV_VARIABLE, "mocked-hostname.example.net",
-                ServiceConstants.API_SCHEME_ENV_VARIABLE, "https"
+                PUBLICATIONS_TABLE_NAME_ENV_VARIABLE, NVA_RESOURCES_TABLE_NAME,
+                DOI_REQUESTS_INDEX_ENV_VARIABLE, BY_DOI_REQUEST_INDEX_NAME,
+                API_HOST_ENV_VARIABLE, "mocked-hostname.example.net",
+                API_SCHEME_ENV_VARIABLE, "https"
             );
         return new Environment() {
             @Override
