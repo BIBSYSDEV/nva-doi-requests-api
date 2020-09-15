@@ -51,6 +51,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final int SINGLE_ITEM = 1;
     public static final String WRONG_OWNER_ERROR =
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
+    public static final String ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND = "Publication with identifier "
+        + "%s not found.";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -185,7 +187,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
-            .orElseThrow(() -> new NotFoundException(String.format("Publication with identifier %s not found.",
+            .orElseThrow(() -> new NotFoundException(String.format(
+                ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND,
                 publicationId.toString())));
     }
 

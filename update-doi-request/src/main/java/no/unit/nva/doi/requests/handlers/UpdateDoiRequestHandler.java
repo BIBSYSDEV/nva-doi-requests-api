@@ -1,11 +1,10 @@
 package no.unit.nva.doi.requests.handlers;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import java.util.Collections;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
-import no.unit.nva.doi.requests.handlers.model.ApiTask;
-import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
@@ -14,11 +13,12 @@ import nva.commons.exceptions.ForbiddenException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiRequest, ApiUpdateDoiResponse> {
+public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiRequest, Void> {
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
     private final DoiRequestsService doiRequestService;
@@ -38,7 +38,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
 
 
     @Override
-    protected ApiUpdateDoiResponse processInput(ApiUpdateDoiRequest input, RequestInfo requestInfo, Context context)
+    protected Void processInput(ApiUpdateDoiRequest input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
         input.validate();
         String username = getUserName(requestInfo);
@@ -52,12 +52,9 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
-
-        return ApiUpdateDoiResponse.newBuilder().withTask(ApiTask.newBuilder()
-            .withHref(getContentLocation(publicationId))
-            .withIdentifier(publicationId.toString())
-            .build())
-            .build();
+        setAdditionalHeadersSupplier(() ->
+            Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationId)));
+        return null;
     }
 
     private String getContentLocation(UUID publicationID) {
@@ -81,7 +78,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     }
 
     @Override
-    protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, ApiUpdateDoiResponse output) {
+    protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, Void output) {
         return HttpStatus.SC_ACCEPTED;
     }
 }

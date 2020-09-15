@@ -13,6 +13,10 @@ public abstract class AbstractDoiRequest {
     public static final String PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT = "Publication with identifier %s not found.";
     private String publicationId;
 
+    protected AbstractDoiRequest() {
+
+    }
+
 
     public void validate() throws BadRequestException {
         attempt(() -> UUID.fromString(publicationId))

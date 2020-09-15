@@ -5,7 +5,10 @@ import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_N
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
@@ -25,8 +28,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
-import no.unit.nva.doi.requests.handlers.model.ApiTask;
-import no.unit.nva.doi.requests.handlers.model.ApiUpdateDoiResponse;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
@@ -55,6 +56,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String NULL_STRING_REPRESENTATION = "null";
 
     private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
+    public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
 
     private final Environment environment;
     private final String publicationsTableName;
@@ -215,9 +217,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         updateRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
 
 
-        var output = outpuStream();
+        var output = outputStream();
 
-        GatewayResponse<ApiUpdateDoiResponse> response = sendRequest(updateRequest, validUsername(publication));
+        GatewayResponse<Void> response = sendRequest(updateRequest, validUsername(publication));
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
 
@@ -226,13 +228,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
 
-        var responseEntity = response.getBodyObject(ApiUpdateDoiResponse.class);
-        assertThat(responseEntity, is(equalTo(ApiUpdateDoiResponse.newBuilder()
-            .withTask(ApiTask.newBuilder()
-                .withIdentifier(publication.getIdentifier().toString())
-                .withHref("https://mocked-hostname.example.net/publication/" + publication.getIdentifier().toString())
-                .build())
-            .build())));
+        assertThat(response.getHeaders(), hasEntry("Location",
+            "https://mocked-hostname.example.net/publication/" + publication.getIdentifier().toString()));
     }
 
     private String validUsername(Publication publication) {
@@ -282,7 +279,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, String username) throws IOException {
         var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
         InputStream input = createRequest(doiRequest, username, pathParams);
-        ByteArrayOutputStream output = outpuStream();
+        ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
         return GatewayResponse.fromOutputStream(output);
@@ -290,9 +287,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, JsonNode requestContext)
         throws IOException {
-        var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
+        var pathParams = Map.of(API_PUBLICATION_PATH_IDENTIFIER, doiRequest.getPublicationId());
         InputStream input = createRequest(doiRequest, pathParams, requestContext);
-        ByteArrayOutputStream output = outpuStream();
+        ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
         return GatewayResponse.fromOutputStream(output);
@@ -302,7 +299,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                                                String username,
                                                Map<String, String> pathParameters) throws IOException {
         InputStream input = createRequest(doiRequest, username, pathParameters);
-        ByteArrayOutputStream output = outpuStream();
+        ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
         return GatewayResponse.fromOutputStream(output);
@@ -334,7 +331,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .build();
     }
 
-    private ByteArrayOutputStream outpuStream() {
+    private ByteArrayOutputStream outputStream() {
         return new ByteArrayOutputStream();
     }
 
