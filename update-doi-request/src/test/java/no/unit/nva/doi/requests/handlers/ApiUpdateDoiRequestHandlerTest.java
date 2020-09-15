@@ -118,10 +118,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsNotFoundWhenPublicationDoesNotExist() throws IOException {
-        var updateDoiRequest = new ApiUpdateDoiRequest();
+
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
-        updateDoiRequest.setPublicationId(notExistingPublicationIdentifier);
-        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(notExistingPublicationIdentifier);
 
         GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
 
@@ -133,14 +132,19 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             containsString(String.format(PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT, notExistingPublicationIdentifier)));
     }
 
+    private ApiUpdateDoiRequest generateValidApiUpdateDoiRequest(String publicationIdentifier) {
+        var updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setPublicationId(publicationIdentifier);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        return updateDoiRequest;
+    }
+
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationDoesNotHaveDoiRequest() throws IOException {
         var publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new ApiUpdateDoiRequest();
-        updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
         GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, publication.getOwner());
 
@@ -178,9 +182,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Publication publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new ApiUpdateDoiRequest();
-        updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, INVALID_USERNAME);
 
@@ -201,9 +203,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Publication publication = insertPublicationWithoutDoiRequest(
             Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
 
-        var updateDoiRequest = new ApiUpdateDoiRequest();
-        updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
-        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
         var requestContext = objectMapper.createObjectNode();
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, requestContext);
@@ -235,11 +235,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var publication = insertPublicationWithDoiRequest(Clock.fixed(mockNow,
                 ZoneId.systemDefault()));
 
-
-        var updateRequest = new ApiUpdateDoiRequest();
-        updateRequest.setPublicationId(publication.getIdentifier().toString());
-        updateRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
-
+        ApiUpdateDoiRequest updateRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
         var output = outputStream();
 
