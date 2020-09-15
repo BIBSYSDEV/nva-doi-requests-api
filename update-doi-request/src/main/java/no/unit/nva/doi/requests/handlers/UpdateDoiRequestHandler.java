@@ -19,7 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiRequest, Void> {
+
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
+    public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
 
     private final DoiRequestsService doiRequestService;
     private final String apiScheme;
@@ -62,7 +64,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     }
 
     private UUID getPublicationIdentifier(RequestInfo requestInfo) {
-        return UUID.fromString(requestInfo.getPathParameter("publicationIdentifier"));
+        return UUID.fromString(requestInfo.getPathParameter(API_PUBLICATION_PATH_IDENTIFIER));
     }
 
     private String getUserName(RequestInfo requestInfo) throws ForbiddenException {

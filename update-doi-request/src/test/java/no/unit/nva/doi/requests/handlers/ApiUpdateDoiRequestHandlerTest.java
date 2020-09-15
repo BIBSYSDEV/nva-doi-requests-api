@@ -1,5 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
+import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
@@ -56,7 +57,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String NULL_STRING_REPRESENTATION = "null";
 
     private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
-    public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
 
     private final Environment environment;
     private final String publicationsTableName;
