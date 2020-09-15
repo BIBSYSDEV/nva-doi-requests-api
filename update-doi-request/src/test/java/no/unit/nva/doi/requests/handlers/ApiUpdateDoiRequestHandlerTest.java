@@ -4,6 +4,9 @@ import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBL
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
+import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
+import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -33,7 +36,6 @@ import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
-import no.unit.nva.doi.requests.util.MockEnvironment;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
@@ -44,6 +46,7 @@ import nva.commons.handlers.GatewayResponse;
 import nva.commons.utils.Environment;
 import nva.commons.utils.log.LogUtils;
 import nva.commons.utils.log.TestAppender;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.hamcrest.core.Is;
 import org.hamcrest.core.IsEqual;
@@ -57,6 +60,10 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String NULL_STRING_REPRESENTATION = "null";
 
     private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
+    public static final String FAKE_ENV_SCHEMA_AND_HOST = FAKE_API_SCHEME_ENV
+        + "://"
+        + FAKE_API_HOST_ENV
+        + "/publication/";
 
     private final Environment environment;
     private final String publicationsTableName;
@@ -68,7 +75,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
 
     public ApiUpdateDoiRequestHandlerTest() {
-        environment = MockEnvironment.mockEnvironment();
+        environment = mockEnvironment();
         publicationsTableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
         context = mock(Context.class);
     }
@@ -247,8 +254,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
 
-        assertThat(response.getHeaders(), hasEntry("Location",
-            "https://mocked-hostname.example.net/publication/" + publication.getIdentifier().toString()));
+        assertThat(response.getHeaders(), hasEntry(HttpHeaders.LOCATION,
+            FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
     }
 
     private String validUsername(Publication publication) {

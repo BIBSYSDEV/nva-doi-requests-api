@@ -16,6 +16,8 @@ public final class MockEnvironment {
 
     public static final String ENV_VARIABLE_NOT_FOUND_ERROR = "Did not find env variable:";
     public static final String ALLOW_CORS = "*";
+    public static final String FAKE_API_HOST_ENV = "mocked-hostname.example.net";
+    public static final String FAKE_API_SCHEME_ENV = "https";
 
     /**
      * Mock environment with all env variables necessary (database and handlers).
@@ -27,8 +29,8 @@ public final class MockEnvironment {
             .of(ALLOWED_ORIGIN_ENV, ALLOW_CORS,
                 PUBLICATIONS_TABLE_NAME_ENV_VARIABLE, NVA_RESOURCES_TABLE_NAME,
                 DOI_REQUESTS_INDEX_ENV_VARIABLE, BY_DOI_REQUEST_INDEX_NAME,
-                API_HOST_ENV_VARIABLE, "mocked-hostname.example.net",
-                API_SCHEME_ENV_VARIABLE, "https"
+                API_HOST_ENV_VARIABLE, FAKE_API_HOST_ENV,
+                API_SCHEME_ENV_VARIABLE, FAKE_API_SCHEME_ENV
             );
         return new Environment() {
             @Override
