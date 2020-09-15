@@ -297,7 +297,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     }
 
     private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest, String username) throws IOException {
-        var pathParams = Map.of("publicationIdentifier", doiRequest.getPublicationId());
+        var pathParams = Map.of(API_PUBLICATION_PATH_IDENTIFIER, doiRequest.getPublicationId());
         InputStream input = createRequest(doiRequest, username, pathParams);
         ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
