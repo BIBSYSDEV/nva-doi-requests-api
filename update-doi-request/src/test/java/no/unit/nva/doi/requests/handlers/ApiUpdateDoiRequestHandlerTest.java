@@ -148,6 +148,25 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void handleRequestReturnsBadRequestMissingDoiRequest() throws IOException {
+        var publication = insertPublicationWithoutDoiRequest(
+            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+
+        var updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
+
+
+        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, publication.getOwner());
+
+        final Problem details = response.getBodyObject(Problem.class);
+
+        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_BAD_REQUEST)));
+
+        assertThat(details.getDetail(),
+            containsString("You must request changes to do"));
+    }
+
+    @Test
     public void handleRequestReturnsForbiddenExceptionWhenInputUsernameIsNotThePublicationOwner()
             throws IOException {
         final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
