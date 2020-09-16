@@ -51,16 +51,15 @@ import org.junit.jupiter.api.Test;
 import org.zalando.problem.Problem;
 
 public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
-    public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
-    private static final String INVALID_USERNAME = "invalidUsername";
-    public static final String NULL_STRING_REPRESENTATION = "null";
 
-    private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
+    public static final String INVALID_PUBLICATION_ID = "InvalidPublicationId";
+    public static final String NULL_STRING_REPRESENTATION = "null";
     public static final String FAKE_ENV_SCHEMA_AND_HOST = FAKE_API_SCHEME_ENV
         + "://"
         + FAKE_API_HOST_ENV
         + "/publication/";
-
+    private static final String INVALID_USERNAME = "invalidUsername";
+    private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     private final Environment environment;
     private final String publicationsTableName;
     private final Context context;
@@ -68,7 +67,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private final Instant mockOneHourBefore = mockNow.minus(1, ChronoUnit.HOURS);
     private DynamoDBDoiRequestsService doiRequestsService;
     private UpdateDoiRequestHandler handler;
-
 
     public ApiUpdateDoiRequestHandlerTest() {
         environment = mockEnvironment();
@@ -89,8 +87,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var updateDoiRequest = requestWithoutPublicationId();
         updateDoiRequest.setPublicationId(INVALID_PUBLICATION_ID);
 
-        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
-
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_BAD_REQUEST)));
         final Problem details = response.getBodyObject(Problem.class);
@@ -106,7 +103,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT,
             Collections.emptyMap());
 
-
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_BAD_REQUEST)));
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -120,7 +116,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(notExistingPublicationIdentifier);
 
-        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, USERNAME_NOT_IMPORTANT);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -130,13 +126,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             containsString(String.format(PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT, notExistingPublicationIdentifier)));
     }
 
-    private ApiUpdateDoiRequest generateValidApiUpdateDoiRequest(String publicationIdentifier) {
-        var updateDoiRequest = new ApiUpdateDoiRequest();
-        updateDoiRequest.setPublicationId(publicationIdentifier);
-        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
-        return updateDoiRequest;
-    }
-
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationDoesNotHaveDoiRequest() throws IOException {
         var publication = insertPublicationWithoutDoiRequest(
@@ -144,7 +133,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
-        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, publication.getOwner());
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication.getOwner());
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -162,8 +151,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
 
-
-        GatewayResponse<Problem> response =  sendRequest(updateDoiRequest, publication.getOwner());
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication.getOwner());
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -173,13 +161,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             containsString("You must request changes to do"));
     }
 
-    private Clock getFixedClockWithDefaultTimeZone(Instant instant) {
-        return Clock.fixed(instant, ZoneId.systemDefault());
-    }
-
     @Test
     public void handleRequestReturnsForbiddenExceptionWhenInputUsernameIsNotThePublicationOwner()
-            throws IOException {
+        throws IOException {
         final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
         Publication publication = insertPublicationWithoutDoiRequest(
             getFixedClockWithDefaultTimeZone(mockOneHourBefore));
@@ -193,7 +177,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
         assertThatProblemDetailsDoesNotRevealSensitiveInformation(details, INVALID_USERNAME,
-                validUsername(publication));
+            validUsername(publication));
 
         assertThatLogsContainReasonForForbiddenMessage(appender, publication);
     }
@@ -219,26 +203,11 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             containsString("Missing from requestContext: /authorizer/claims/custom:feideId"));
     }
 
-    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details,
-                                                                           String username,
-                                                                           String publicationOwner) {
-        String errorMessage = details.getDetail();
-        assertThat(errorMessage, not(containsString(username)));
-        assertThat(errorMessage, not(containsString(publicationOwner)));
-    }
-
-    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
-        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
-        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
-    }
-
     @Test
     public void handleRequestSucessfullyUpdatesStatusWhenPublicationIdIsValid() throws IOException, NotFoundException {
         var publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockNow));
 
         ApiUpdateDoiRequest updateRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
-
-        var output = outputStream();
 
         GatewayResponse<Void> response = sendRequest(updateRequest, validUsername(publication));
 
@@ -253,6 +222,30 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
     }
 
+    private ApiUpdateDoiRequest generateValidApiUpdateDoiRequest(String publicationIdentifier) {
+        var updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setPublicationId(publicationIdentifier);
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.APPROVED);
+        return updateDoiRequest;
+    }
+
+    private Clock getFixedClockWithDefaultTimeZone(Instant instant) {
+        return Clock.fixed(instant, ZoneId.systemDefault());
+    }
+
+    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details,
+                                                                           String username,
+                                                                           String publicationOwner) {
+        String errorMessage = details.getDetail();
+        assertThat(errorMessage, not(containsString(username)));
+        assertThat(errorMessage, not(containsString(publicationOwner)));
+    }
+
+    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
+        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
+        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
+    }
+
     private String validUsername(Publication publication) {
         return publication.getOwner();
     }
@@ -263,14 +256,14 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequestSummary expectedDoiRequestSummary(Publication publication) {
         var includedDoiRequest = new DoiRequest.Builder()
-                .withDate(mockNow)
-                .withStatus(DoiRequestStatus.APPROVED)
-                .build();
+            .withDate(mockNow)
+            .withStatus(DoiRequestStatus.APPROVED)
+            .build();
         return new DoiRequestSummary(
-                publication.getIdentifier(),
-                publication.getOwner(),
-                includedDoiRequest,
-                publication.getEntityDescription());
+            publication.getIdentifier(),
+            publication.getOwner(),
+            includedDoiRequest,
+            publication.getEntityDescription());
     }
 
     private Publication insertPublicationWithDoiRequest(Clock clock)
@@ -286,9 +279,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private Publication insertPublicationWithoutDoiRequest(Clock clock)
         throws com.fasterxml.jackson.core.JsonProcessingException {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock)
-                .copy()
-                .withCreatedDate(mockOneHourBefore)
-                .build();
+            .copy()
+            .withCreatedDate(mockOneHourBefore)
+            .build();
         insertPublication(publicationsTableName, publication);
         return publication;
     }
@@ -332,9 +325,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         throws JsonProcessingException {
         var requestContext = objectMapper.createObjectNode();
         requestContext
-                .putObject("authorizer")
-                .putObject("claims")
-                .put("custom:feideId", username);
+            .putObject("authorizer")
+            .putObject("claims")
+            .put("custom:feideId", username);
 
         return createRequest(doiRequest, pathParameters, requestContext);
     }
@@ -355,5 +348,4 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private ByteArrayOutputStream outputStream() {
         return new ByteArrayOutputStream();
     }
-
 }
