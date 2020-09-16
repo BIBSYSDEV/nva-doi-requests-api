@@ -79,7 +79,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @BeforeEach
     public void init() {
         initializeDatabase();
-        Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
+        Clock mockClock = getFixedClockWithDefaultTimeZone(mockNow);
         doiRequestsService = new DynamoDBDoiRequestsService(client, objectMapper, environment, mockClock);
         handler = new UpdateDoiRequestHandler(environment, doiRequestsService);
     }
@@ -140,7 +140,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationDoesNotHaveDoiRequest() throws IOException {
         var publication = insertPublicationWithoutDoiRequest(
-            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
@@ -157,7 +157,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsBadRequestMissingDoiRequest() throws IOException {
         var publication = insertPublicationWithoutDoiRequest(
-            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(publication.getIdentifier().toString());
@@ -173,12 +173,16 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             containsString("You must request changes to do"));
     }
 
+    private Clock getFixedClockWithDefaultTimeZone(Instant instant) {
+        return Clock.fixed(instant, ZoneId.systemDefault());
+    }
+
     @Test
     public void handleRequestReturnsForbiddenExceptionWhenInputUsernameIsNotThePublicationOwner()
             throws IOException {
         final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
         Publication publication = insertPublicationWithoutDoiRequest(
-            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
@@ -199,7 +203,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         throws IOException {
         final TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
         Publication publication = insertPublicationWithoutDoiRequest(
-            Clock.fixed(mockOneHourBefore, ZoneId.systemDefault()));
+            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
@@ -230,8 +234,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestSucessfullyUpdatesStatusWhenPublicationIdIsValid() throws IOException, NotFoundException {
-        var publication = insertPublicationWithDoiRequest(Clock.fixed(mockNow,
-                ZoneId.systemDefault()));
+        var publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockNow));
 
         ApiUpdateDoiRequest updateRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
