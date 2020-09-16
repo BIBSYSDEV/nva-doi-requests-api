@@ -46,8 +46,6 @@ import nva.commons.utils.log.LogUtils;
 import nva.commons.utils.log.TestAppender;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
-import org.hamcrest.core.Is;
-import org.hamcrest.core.IsEqual;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.zalando.problem.Problem;
@@ -126,7 +124,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         final Problem details = response.getBodyObject(Problem.class);
 
-        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_NOT_FOUND)));
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_NOT_FOUND)));
 
         assertThat(details.getDetail(),
             containsString(String.format(PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT, notExistingPublicationIdentifier)));
@@ -150,7 +148,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         final Problem details = response.getBodyObject(Problem.class);
 
-        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_BAD_REQUEST)));
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_BAD_REQUEST)));
 
         assertThat(details.getDetail(),
             containsString("You must initiate creation of a DoiRequest before you can update it."));
@@ -169,7 +167,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         final Problem details = response.getBodyObject(Problem.class);
 
-        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_BAD_REQUEST)));
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_BAD_REQUEST)));
 
         assertThat(details.getDetail(),
             containsString("You must request changes to do"));
@@ -188,7 +186,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         final Problem details = response.getBodyObject(Problem.class);
 
-        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_FORBIDDEN)));
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
         assertThatProblemDetailsDoesNotRevealSensitiveInformation(details, INVALID_USERNAME,
                 validUsername(publication));
@@ -210,7 +208,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         final Problem details = response.getBodyObject(Problem.class);
 
-        assertThat(response.getStatusCode(), Is.is(IsEqual.equalTo(HttpStatus.SC_FORBIDDEN)));
+        assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
         assertThat(details.getDetail(), is(equalTo("Forbidden")));
         assertThat(appender.getMessages(),
