@@ -1,7 +1,5 @@
 package no.unit.nva.doi.requests.userdetails;
 
-import static nva.commons.utils.RequestUtils.getRequestContextParameter;
-
 import com.fasterxml.jackson.core.JsonPointer;
 import nva.commons.handlers.RequestInfo;
 
@@ -14,14 +12,14 @@ public final class UserDetails {
         "/authorizer/claims/custom:applicationRoles");
 
     public static String getUsername(RequestInfo requestInfo) {
-        return getRequestContextParameter(requestInfo, FEIDE_ID);
+        return requestInfo.getRequestContextParameter(FEIDE_ID);
     }
 
     public static String getCustomerId(RequestInfo requestInfo) {
-        return getRequestContextParameter(requestInfo, CUSTOMER_ID);
+        return requestInfo.getRequestContextParameter(CUSTOMER_ID);
     }
 
     public static String getAssignedRoles(RequestInfo requestInfo) {
-        return getRequestContextParameter(requestInfo, APPLICATION_ROLES);
+        return requestInfo.getRequestContextParameter(APPLICATION_ROLES);
     }
 }
