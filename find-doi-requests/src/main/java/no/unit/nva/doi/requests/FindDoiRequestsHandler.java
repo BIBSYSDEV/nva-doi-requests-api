@@ -3,7 +3,6 @@ package no.unit.nva.doi.requests;
 import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static nva.commons.utils.JsonUtils.objectMapper;
-import static nva.commons.utils.RequestUtils.getQueryParameter;
 import static org.apache.http.HttpStatus.SC_OK;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -70,10 +69,11 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String assignedRoles;
         String customerId;
         try {
+
             user = UserDetails.getUsername(requestInfo);
             assignedRoles = UserDetails.getAssignedRoles(requestInfo);
             customerId = UserDetails.getCustomerId(requestInfo);
-            requestedRole = getQueryParameter(requestInfo, ROLE);
+            requestedRole = requestInfo.getQueryParameter(ROLE);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
         }
