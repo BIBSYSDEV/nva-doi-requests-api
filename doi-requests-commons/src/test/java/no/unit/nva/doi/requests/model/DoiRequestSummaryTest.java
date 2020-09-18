@@ -2,6 +2,7 @@ package no.unit.nva.doi.requests.model;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import no.unit.nva.doi.requests.api.model.DoiRequestSummary;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.Publication;
 import nva.commons.utils.JsonUtils;

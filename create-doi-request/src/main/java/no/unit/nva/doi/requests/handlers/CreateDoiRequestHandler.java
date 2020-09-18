@@ -2,7 +2,7 @@ package no.unit.nva.doi.requests.handlers;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
-import no.unit.nva.doi.requests.model.CreateDoiRequest;
+import no.unit.nva.doi.requests.api.model.CreateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
