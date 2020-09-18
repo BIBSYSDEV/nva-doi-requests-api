@@ -3,7 +3,6 @@ package no.unit.nva.doi.requests;
 import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static nva.commons.utils.JsonUtils.objectMapper;
-import static nva.commons.utils.RequestUtils.getQueryParameter;
 import static org.apache.http.HttpStatus.SC_OK;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -30,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsResponse> {
 
-
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
     public static final String CREATOR = "creator";
     public static final String CURATOR = "curator";
@@ -53,8 +51,8 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     /**
      * Constructor for FindDoiRequestsHandler.
      *
-     * @param doiRequestsService    doiRequestsService
-     * @param environment   environment
+     * @param doiRequestsService doiRequestsService
+     * @param environment        environment
      */
     public FindDoiRequestsHandler(DoiRequestsService doiRequestsService, Environment environment) {
         super(Void.class, environment, logger);
@@ -73,7 +71,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
             user = UserDetails.getUsername(requestInfo);
             assignedRoles = UserDetails.getAssignedRoles(requestInfo);
             customerId = UserDetails.getCustomerId(requestInfo);
-            requestedRole = getQueryParameter(requestInfo, ROLE);
+            requestedRole = requestInfo.getQueryParameter(ROLE);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e);
         }
@@ -82,6 +80,11 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
 
         List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, URI.create(customerId));
         return DoiRequestsResponse.of(doiRequests);
+    }
+
+    @Override
+    protected Integer getSuccessStatusCode(Void input, DoiRequestsResponse output) {
+        return SC_OK;
     }
 
     private List<DoiRequestSummary> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
@@ -108,10 +111,5 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
             logger.info(String.format("Role '%s' not found among roles '%s'", requestedRole, assignedRoles));
             throw new NotAuthorizedException("User is missing requested role: " + requestedRole);
         }
-    }
-
-    @Override
-    protected Integer getSuccessStatusCode(Void input, DoiRequestsResponse output) {
-        return SC_OK;
     }
 }
