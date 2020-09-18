@@ -21,9 +21,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
-import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
+import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
@@ -108,10 +108,6 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CREATED)));
     }
 
-    private String validUsername(Publication publication) {
-        return publication.getOwner();
-    }
-
     @Test
     public void handleRequestSavesDoiRequestToPublicationWhenPublicationIdIsNotEmpty()
         throws IOException, NotFoundException {
@@ -120,7 +116,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
         InputStream input = createRequest(doiRequest, validUsername(publication));
-        ByteArrayOutputStream output = outpuStream();
+        ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
         DoiRequestSummary actualDoiRequestSummary = readPublicationDirectlyFromDynamo(doiRequest);
@@ -162,6 +158,10 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(problem.getDetail(), containsString(DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
     }
 
+    private String validUsername(Publication publication) {
+        return publication.getOwner();
+    }
+
     private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
         String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
         assertThat(appender.getMessages(), containsString(expectedErrorMessage));
@@ -177,7 +177,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private <T> GatewayResponse<T> sendRequest(CreateDoiRequest doiRequest, String username) throws IOException {
         InputStream input = createRequest(doiRequest, username);
-        ByteArrayOutputStream output = outpuStream();
+        ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
         return GatewayResponse.fromOutputStream(output);
@@ -188,11 +188,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .withDate(mockNow)
             .withStatus(DoiRequestStatus.REQUESTED)
             .build();
-        return new DoiRequestSummary(
-            publication.getIdentifier(),
-            publication.getOwner(),
-            includedDoiRequest,
-            publication.getEntityDescription());
+        publication.setDoiRequest(includedDoiRequest);
+        return DoiRequestSummary.fromPublication(publication);
     }
 
     private DoiRequestSummary readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
@@ -240,7 +237,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return doiRequest;
     }
 
-    private ByteArrayOutputStream outpuStream() {
+    private ByteArrayOutputStream outputStream() {
         return new ByteArrayOutputStream();
     }
 }

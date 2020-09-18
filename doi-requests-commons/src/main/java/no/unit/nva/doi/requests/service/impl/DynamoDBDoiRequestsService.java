@@ -25,10 +25,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import no.unit.nva.doi.requests.contants.ServiceConstants;
-import no.unit.nva.doi.requests.exception.DynamoDBException;
+import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
+import no.unit.nva.doi.requests.contants.ServiceConstants;
+import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
@@ -39,6 +40,8 @@ import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
+import nva.commons.utils.attempt.Failure;
+import nva.commons.utils.attempt.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,47 +98,35 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public List<DoiRequestSummary> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
         throws ApiGatewayException {
-        RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
-        rangeKeyCondition.beginsWith(status.toString());
-        ItemCollection<QueryOutcome> outcome;
-        try {
-            outcome = doiRequestsIndex.query(PUBLISHER_ID, publisher.toString(), rangeKeyCondition);
-        } catch (Exception e) {
-            throw new DynamoDBException(ERROR_READING_FROM_TABLE, e);
-        }
-        return parseJsonToDoiRequestSummaries(outcome);
+        Stream<Publication> publications = fetchPublicationsByPubisherAndStatus(publisher, status);
+        return publications.parallel().map(DoiRequestSummary::fromPublication).collect(Collectors.toList());
     }
 
     @Override
     public List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException {
         return findDoiRequestsByStatus(publisher, status)
-            .stream()
-            .filter(doiRequestSummary -> doiRequestSummary.getPublicationOwner().equals(owner))
+            .stream().parallel()
+            .filter(doiRequestSummary -> doiRequestSummary.getOwner().equals(owner))
             .collect(Collectors.toList());
     }
 
     @Override
     public Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws NotFoundException {
         Publication publication = fetchPublication(publicationId);
-        return Optional.ofNullable(DoiRequestSummary.fromPublication(publication));
+        return Optional.of(DoiRequestSummary.fromPublication(publication));
     }
 
     @Override
     public void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException {
-        Publication publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
-        validateUsername(publication, username);
-        if (nonNull(publication.getDoiRequest())) {
-            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
-        }
-        DoiRequest doiRequest = new DoiRequest.Builder()
-            .withStatus(DoiRequestStatus.REQUESTED)
-            .withDate(Instant.now(clockForTimestamps))
-            .addMessage(createMessage(createDoiRequest, username))
-            .build();
 
-        publication.setDoiRequest(doiRequest);
+        Publication publication = fetchPublicationForUser(createDoiRequest, username);
+        assertThatPublicationHasNoPreviousDoiRequest(publication);
+
+        var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
+        publication.setDoiRequest(newDoiRequestEntry);
+
         putItem(publication);
     }
 
@@ -149,6 +140,89 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.ofNullable(doiRequestSummary);
     }
 
+    private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
+        RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
+        rangeKeyCondition.beginsWith(status.toString());
+        return rangeKeyCondition;
+    }
+
+    private Stream<Publication> fetchPublicationsByPubisherAndStatus(URI publisher, DoiRequestStatus status)
+        throws DynamoDBException {
+
+        return
+            attempt(() -> limitKeyRangeToStatus(status))
+                .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
+                //TODO: update doiRequestIndex so that we can get the entire publication at once.
+                .map(this::extractPublicationIds)
+                .map(this::fetchPublications)
+                .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private DynamoDBException handleErrorFetchingPublications(Failure<Stream<Publication>> fail) {
+        return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
+    }
+
+    private ItemCollection<QueryOutcome> queryByPublisherAndStatus(URI publisher,
+                                                                   RangeKeyCondition statusLimitedRange) {
+        return doiRequestsIndex.query(PUBLISHER_ID, publisher.toString(),
+            statusLimitedRange);
+    }
+
+    private Stream<Publication> fetchPublications(List<String> publicationIds) {
+        return publicationIds
+            .stream().parallel()
+            .map(id -> attempt(() -> fetchPublication(UUID.fromString(id))))
+            .flatMap(this::attemptToStream);
+    }
+
+    private Stream<Publication> attemptToStream(Try<Publication> attempt) {
+        return attempt.toOptional(this::logError).stream();
+    }
+
+    private void logError(Failure<Publication> fail) {
+        logger.error("Error fetching publication", fail.getException());
+    }
+
+    private List<String> extractPublicationIds(ItemCollection<QueryOutcome> outcome) {
+        List<String> publicationIds = new ArrayList<>();
+        outcome.forEach(out -> addIdToList(publicationIds, out));
+        return publicationIds;
+    }
+
+    private boolean addIdToList(List<String> publicationIds, Item out) {
+        return publicationIds.add(out.getString("identifier"));
+    }
+
+    private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
+        throws NotFoundException, ForbiddenException {
+        var publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
+        validateUsername(publication, username);
+        return publication;
+    }
+
+    private DoiRequest createDoiRequestEntry(CreateDoiRequest createDoiRequest, String username) {
+        return createDoiRequest.getMessage()
+            .map(message -> doiRequestBuilderWithMessage(message, username))
+            .orElse(doiRequestBuilderWithoutMessage())
+            .build();
+    }
+
+    private void assertThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
+        if (nonNull(publication.getDoiRequest())) {
+            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
+        }
+    }
+
+    private DoiRequest.Builder doiRequestBuilderWithoutMessage() {
+        return new DoiRequest.Builder()
+            .withStatus(DoiRequestStatus.REQUESTED)
+            .withDate(Instant.now(clockForTimestamps));
+    }
+
+    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
+        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
+    }
+
     private void validateUsername(Publication publication, String username) throws ForbiddenException {
         if (!(publication.getOwner().equals(username))) {
             logger.warn(String.format(WRONG_OWNER_ERROR, username, publication.getOwner()));
@@ -156,10 +230,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         }
     }
 
-    private DoiRequestMessage createMessage(CreateDoiRequest createDoiRequest, String author) {
+    private DoiRequestMessage createMessage(String message, String author) {
         return new DoiRequestMessage.Builder()
             .withAuthor(author)
-            .withText(createDoiRequest.getMessage())
+            .withText(message)
             .withTimestamp(Instant.now(clockForTimestamps))
             .build();
     }
@@ -213,7 +287,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     private List<DoiRequestSummary> parseJsonToDoiRequestSummaries(ItemCollection<QueryOutcome> items) {
         List<DoiRequestSummary> doiRequestSummaries = new ArrayList<>();
-        items.forEach(item -> toDoiRequestSummary(item).ifPresent(doiRequestSummaries::add));
+        items.forEach(item -> DoiRequestSummary.fromItem(item).ifPresent(doiRequestSummaries::add));
         return doiRequestSummaries;
     }
 }

@@ -4,6 +4,7 @@ import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TA
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,7 +55,6 @@ import org.junit.jupiter.api.function.Executable;
 
 public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
-    public static final String GARBAGE_JSON = "ʕ•ᴥ•ʔ";
     public static final String DEFAULT_MESSAGE = "defaultMessage";
     public static final String INVALID_USERNAME = "invalidUsername";
     private final Instant mockedNow = Instant.now();
@@ -134,13 +134,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertEquals(DynamoDBDoiRequestsService.ERROR_READING_FROM_TABLE, exception.getMessage());
     }
 
-    @Test
-    public void toDoiDoiRequestSummaryThrowsExceptionOnInvalidJsonItem() {
-        Item item = mock(Item.class);
-        when(item.toJSON()).thenReturn(GARBAGE_JSON);
-        Optional<DoiRequestSummary> doiRequestSummary = service.toDoiRequestSummary(item);
-        assertTrue(doiRequestSummary.isEmpty());
-    }
+
 
     @Test
     public void fetchDoiRequestByPublicationIdReturnsDoiRequestSummary()
@@ -159,7 +153,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         DoiRequestSummary expectedDoiRequestSummary = expectedDoiRequestSummary(publication);
 
-        service.createDoiRequest(createDoiRequest(publication), publication.getOwner());
+        service.createDoiRequest(createDoiRequestWithMessage(publication), publication.getOwner());
         DoiRequestSummary actualDoiRequestSummary = service
             .fetchDoiRequest(publication.getIdentifier())
             .orElseThrow();
@@ -168,15 +162,29 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void createDoiRequestWithoutMessageDoesNotCreateEmptyMessage()
+        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock);
+        insertPublication(publication);
+
+        var doiRequestWithoutMessage = createDoiRequestWithoutMessage(publication);
+        service.createDoiRequest(doiRequestWithoutMessage, publication.getOwner());
+
+        DoiRequest doiRequest = getPublicationDirectlyFromTable(publication.getIdentifier()).getDoiRequest();
+
+        assertThat(doiRequest.getMessages(), is(empty()));
+    }
+
+    @Test
     public void createDoiRequestAddsMessageToPublicationsDoiRequest()
         throws IOException, ConflictException, NotFoundException, ForbiddenException {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
-        CreateDoiRequest createDoiRequest = createDoiRequest(publication);
+        CreateDoiRequest createDoiRequest = createDoiRequestWithMessage(publication);
         service.createDoiRequest(createDoiRequest, publication.getOwner());
 
-        Publication updatedPublication = getPublication(publication.getIdentifier());
+        Publication updatedPublication = getPublicationDirectlyFromTable(publication.getIdentifier());
 
         DoiRequestMessage actualDoiRequestMessage = extractDoiRequestMessageFromPublication(updatedPublication);
 
@@ -190,7 +198,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
         insertPublication(publication);
 
-        Executable action = () -> service.createDoiRequest(createDoiRequest(publication), publication.getOwner());
+        Executable action = () -> service.createDoiRequest(createDoiRequestWithMessage(publication),
+            publication.getOwner());
         ConflictException exception = assertThrows(ConflictException.class, action);
 
         assertThat(exception.getMessage(), containsString(DoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
@@ -200,7 +209,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public void createDoiRequestThrowsNotFoundExceptionWhenCreatingDoiRequestForNonExistingPublication() {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
 
-        Executable action = () -> service.createDoiRequest(createDoiRequest(publication), publication.getOwner());
+        Executable action = () -> service.createDoiRequest(createDoiRequestWithMessage(publication),
+            publication.getOwner());
         NotFoundException exception = assertThrows(NotFoundException.class, action);
 
         assertThat(exception.getMessage(), containsString(publication.getIdentifier().toString()));
@@ -213,7 +223,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
         insertPublication(publication);
 
-        Executable action = () -> service.createDoiRequest(createDoiRequest(publication), INVALID_USERNAME);
+        Executable action = () -> service.createDoiRequest(createDoiRequestWithMessage(publication), INVALID_USERNAME);
         assertThrows(ForbiddenException.class, action);
 
         assertThatServiceLogsCauseOfForbiddenError(testAppender, publication);
@@ -233,7 +243,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest();
         insertPublication(publication);
 
-        Executable action = () -> serviceWithFailingJsonObjectMapper.createDoiRequest(createDoiRequest(publication),
+        Executable action = () -> serviceWithFailingJsonObjectMapper.createDoiRequest(
+            createDoiRequestWithMessage(publication),
             publication.getOwner());
         RuntimeException exception = assertThrows(RuntimeException.class, action);
 
@@ -260,10 +271,16 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         return expectedMessage;
     }
 
-    private CreateDoiRequest createDoiRequest(Publication publication) {
+    private CreateDoiRequest createDoiRequestWithMessage(Publication publication) {
         CreateDoiRequest createDoiRequest = new CreateDoiRequest();
         createDoiRequest.setPublicationId(publication.getIdentifier().toString());
         createDoiRequest.setMessage(DEFAULT_MESSAGE);
+        return createDoiRequest;
+    }
+
+    private CreateDoiRequest createDoiRequestWithoutMessage(Publication publication) {
+        CreateDoiRequest createDoiRequest = new CreateDoiRequest();
+        createDoiRequest.setPublicationId(publication.getIdentifier().toString());
         return createDoiRequest;
     }
 
@@ -282,9 +299,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     private DoiRequestSummary createDoiRequestSummary(Publication publication, DoiRequest expectedDoiRequest) {
-        return new DoiRequestSummary(
-            publication.getIdentifier(), publication.getOwner(), expectedDoiRequest,
-            publication.getEntityDescription());
+        var publicationWithExpectedDoiRequest = publication.copy().withDoiRequest(expectedDoiRequest).build();
+        return DoiRequestSummary.fromPublication(publicationWithExpectedDoiRequest);
     }
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {
@@ -304,7 +320,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         super.insertPublication(tableName, publication);
     }
 
-    private Publication getPublication(UUID publicationId) throws IOException {
+    private Publication getPublicationDirectlyFromTable(UUID publicationId) throws IOException {
         String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
         return super.getPublication(tableName, publicationId, mockedNow);
     }

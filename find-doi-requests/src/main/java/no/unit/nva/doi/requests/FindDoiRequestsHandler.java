@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsResponse> {
 
-
     public static final Logger logger = LoggerFactory.getLogger(FindDoiRequestsHandler.class);
     public static final String CREATOR = "creator";
     public static final String CURATOR = "curator";
@@ -52,8 +51,8 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     /**
      * Constructor for FindDoiRequestsHandler.
      *
-     * @param doiRequestsService    doiRequestsService
-     * @param environment   environment
+     * @param doiRequestsService doiRequestsService
+     * @param environment        environment
      */
     public FindDoiRequestsHandler(DoiRequestsService doiRequestsService, Environment environment) {
         super(Void.class, environment, logger);
@@ -92,6 +91,11 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         return DoiRequestsResponse.of(doiRequests);
     }
 
+    @Override
+    protected Integer getSuccessStatusCode(Void input, DoiRequestsResponse output) {
+        return SC_OK;
+    }
+
     private List<DoiRequestSummary> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
         throws ApiGatewayException {
         List<DoiRequestSummary> doiRequests;
@@ -116,10 +120,5 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
             logger.info(String.format("Role '%s' not found among roles '%s'", requestedRole, assignedRoles));
             throw new NotAuthorizedException("User is missing requested role: " + requestedRole);
         }
-    }
-
-    @Override
-    protected Integer getSuccessStatusCode(Void input, DoiRequestsResponse output) {
-        return SC_OK;
     }
 }
