@@ -2,7 +2,7 @@ package no.unit.nva.doi.requests.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import no.unit.nva.doi.requests.api.model.DoiRequestSummary;
+import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 
 public class DoiRequestsResponse extends ArrayList<DoiRequestSummary> {
 

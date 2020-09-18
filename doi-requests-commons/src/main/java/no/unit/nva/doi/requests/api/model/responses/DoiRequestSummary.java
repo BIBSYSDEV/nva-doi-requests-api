@@ -1,4 +1,4 @@
-package no.unit.nva.doi.requests.api.model;
+package no.unit.nva.doi.requests.api.model.responses;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
