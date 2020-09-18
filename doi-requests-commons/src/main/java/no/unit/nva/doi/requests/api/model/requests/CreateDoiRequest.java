@@ -1,4 +1,4 @@
-package no.unit.nva.doi.requests.model;
+package no.unit.nva.doi.requests.api.model.requests;
 
 import static nva.commons.utils.attempt.Try.attempt;
 
