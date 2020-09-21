@@ -93,41 +93,40 @@ Resources:
               x-amazon-apigateway-integration:
                 uri:
                   Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-                responses: {}
+                responses: { }
                 httpMethod: POST
                 type: AWS_PROXY
-          post:
-            summary: Create new Doi request
-            security:
-              - CognitoUserPool: []
-            requestBody:
-              content:
-                application/json:
-                  schema:
-                    $ref: '#/components/schemas/CreateDoiRequest'
-            responses:
-              '201':
-                description: Created
-                # no body for post. Client will see all messages when they request the details for the DoiRequest
-              '400':
-                description: Bad Request
+            post:
+              summary: Create new Doi request
+              security:
+                - CognitoUserPool: [ ]
+              requestBody:
                 content:
                   application/json:
                     schema:
-                      $ref: '#/components/schemas/Problem'
-              '404':
-                description: Not Found
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/Problem'
-            x-amazon-apigateway-integration:
-              uri:
-                'Fn::Sub': >-
-                  arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-              responses: {}
-              httpMethod: POST
-              type: AWS_PROXY
+                      $ref: '#/components/schemas/CreateDoiRequest'
+              responses:
+                '201':
+                  description: Created
+                  # no body for post. Client will see all messages when they request the details for the DoiRequest
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '404':
+                  description: Not Found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaCreateDoiRequestHandler.Arn}/invocations
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
         components:
           schemas:
             DoiRequestSummary:
