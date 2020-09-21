@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
-import no.unit.nva.doi.requests.model.DoiRequestSummary;
+import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
