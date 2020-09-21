@@ -46,7 +46,7 @@ public class DoiRequestSummary {
         this.publicationModifiedDate = publicationModifiedDate;
         this.publisherId = publisherId;
     }
-
+    
     /**
      * Creates DoiRequest summary from a publication.
      *

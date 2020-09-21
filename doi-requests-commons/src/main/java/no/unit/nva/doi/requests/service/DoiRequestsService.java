@@ -26,4 +26,7 @@ public interface DoiRequestsService {
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException;
+
+    void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+        throws NotFoundException, ForbiddenException;
 }
