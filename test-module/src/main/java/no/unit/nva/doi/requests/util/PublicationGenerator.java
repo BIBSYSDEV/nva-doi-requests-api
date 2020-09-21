@@ -25,15 +25,24 @@ public final class PublicationGenerator {
      * @return publication
      */
     public static Publication getPublicationWithDoiRequest() {
-        return getPublicationWithoutDoiRequest().copy()
+        return getPublicationWithDoiRequest(Clock.systemDefaultZone());
+    }
+
+    /**
+     * Generates a Publication with sufficient data to map to DoiRequestSummary, including setting DOIRequest
+     * creation timestamp and last modified timestamp for the publication from the provided clock.
+     * @param clock Clock for easy testing.
+     * @return publication
+     */
+    public static Publication getPublicationWithDoiRequest(Clock clock) {
+        return getPublicationWithoutDoiRequest(clock).copy()
             .withDoiRequest(new DoiRequest.Builder()
-                .withDate(Instant.now())
+                .withDate(Instant.now(clock))
                 .withStatus(DoiRequestStatus.REQUESTED)
                 .build()
             )
             .build();
     }
-
 
     /**
      * Create publication without DoiRequest.

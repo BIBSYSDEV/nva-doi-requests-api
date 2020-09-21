@@ -40,7 +40,7 @@ public class DoiRequestSummary {
         this.publicationTitle = entityDescription.getMainTitle();
         this.publicationOwner = owner;
     }
-
+    
     /**
      * Creates DoiRequest summary from a publication.
      *

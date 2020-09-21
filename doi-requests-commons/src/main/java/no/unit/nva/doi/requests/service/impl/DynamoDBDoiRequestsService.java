@@ -51,6 +51,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final int SINGLE_ITEM = 1;
     public static final String WRONG_OWNER_ERROR =
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
+    public static final String ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND = "Publication with identifier "
+        + "%s not found.";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -134,6 +136,15 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
+    @Override
+    public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+        throws NotFoundException, ForbiddenException {
+        Publication publication = fetchPublication(publicationID);
+        validateUsername(publication, requestedByUsername);
+        publication.updateDoiRequestStatus(requestedStatusChange);
+        putItem(publication);
+    }
+
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
         throws NotFoundException, ForbiddenException {
         var publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
@@ -201,7 +212,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
-            .orElseThrow(() -> new NotFoundException(publicationId.toString()));
+            .orElseThrow(() -> new NotFoundException(String.format(
+                ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND,
+                publicationId.toString())));
     }
 
     private Publication itemToPublication(Item item) {
