@@ -5,7 +5,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.model.DoiRequestStatus;
