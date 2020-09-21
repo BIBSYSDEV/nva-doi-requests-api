@@ -128,7 +128,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         throws ConflictException, NotFoundException, ForbiddenException {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
-        assertThatPublicationHasNoPreviousDoiRequest(publication);
+        verifyThatPublicationHasNoPreviousDoiRequest(publication);
 
         var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
         publication.setDoiRequest(newDoiRequestEntry);
@@ -169,7 +169,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-    private void assertThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
+    private void verifyThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
         if (nonNull(publication.getDoiRequest())) {
             throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
         }
