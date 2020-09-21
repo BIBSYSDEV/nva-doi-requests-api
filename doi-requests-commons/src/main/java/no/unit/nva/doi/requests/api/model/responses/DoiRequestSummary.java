@@ -134,7 +134,7 @@ public class DoiRequestSummary {
     @JacocoGenerated
     private String failedSerializationWarning(Failure<String> fail) {
         String serializationAsWarning = LOG_SERIALIZATION_ERROR_MESSAGE + fail.getException().getMessage();
-        logger.warn(LOG_SERIALIZATION_ERROR_MESSAGE, fail.getException());
+        logger.error(LOG_SERIALIZATION_ERROR_MESSAGE, fail.getException());
         return serializationAsWarning;
     }
 
