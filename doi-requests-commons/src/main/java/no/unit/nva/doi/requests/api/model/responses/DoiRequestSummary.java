@@ -1,4 +1,4 @@
-package no.unit.nva.doi.requests.model;
+package no.unit.nva.doi.requests.api.model.responses;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,7 +40,7 @@ public class DoiRequestSummary {
         this.publicationTitle = entityDescription.getMainTitle();
         this.publicationOwner = owner;
     }
-
+    
     /**
      * Creates DoiRequest summary from a publication.
      *

@@ -5,8 +5,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import no.unit.nva.doi.requests.model.CreateDoiRequest;
-import no.unit.nva.doi.requests.model.DoiRequestSummary;
+import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
+import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
@@ -26,4 +26,7 @@ public interface DoiRequestsService {
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException;
+
+    void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+        throws NotFoundException, ForbiddenException;
 }
