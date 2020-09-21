@@ -43,19 +43,19 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     protected Void processInput(ApiUpdateDoiRequest input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
         input.validate();
-        String username = getUserName(requestInfo);
-        UUID publicationId = getPublicationIdentifier(requestInfo);
-
+        var username = getUserName(requestInfo);
+        UUID publicationId;
         var requestedStatusChange = input.getDoiRequestStatus()
                 .orElseThrow(() -> new BadRequestException("You must request changes to do"));
 
         try {
+            publicationId = getPublicationIdentifier(requestInfo);
             doiRequestService.updateDoiRequest(publicationId, requestedStatusChange, username);
+            setAdditionalHeadersSupplier(() ->
+                    Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationId)));
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
-        setAdditionalHeadersSupplier(() ->
-            Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationId)));
         return null;
     }
 
@@ -68,15 +68,13 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     }
 
     private String getUserName(RequestInfo requestInfo) throws ForbiddenException {
-        String username;
         try {
-            username = UserDetails.getUsername(requestInfo);
+            return UserDetails.getUsername(requestInfo);
         } catch (IllegalArgumentException e) {
-            // IllegalArgumentExpcetion: Missing from requestContext: /authorizer/claims/custom:feideId
+            // IllegalArgumentException: Missing from requestContext: /authorizer/claims/custom:feideId
             logger.warn(e.getMessage());
             throw new ForbiddenException();
         }
-        return username;
     }
 
     @Override
