@@ -15,7 +15,6 @@ import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
@@ -25,7 +24,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
@@ -41,7 +39,6 @@ import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
 import nva.commons.utils.attempt.Failure;
-import nva.commons.utils.attempt.Try;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +51,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final int SINGLE_ITEM = 1;
     public static final String WRONG_OWNER_ERROR =
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
-    public static final String ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND = "Publication with identifier "
-        + "%s not found.";
+    public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
@@ -100,8 +96,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public List<DoiRequestSummary> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
         throws ApiGatewayException {
-        Stream<Publication> publications = fetchPublicationsByPubisherAndStatus(publisher, status);
-        return publications.parallel().map(DoiRequestSummary::fromPublication).collect(Collectors.toList());
+        List<Publication> publications = fetchPublicationsByPublisherAndStatus(publisher, status);
+        return publications
+            .stream().parallel()
+            .map(DoiRequestSummary::fromPublication).collect(Collectors.toList());
     }
 
     @Override
@@ -141,35 +139,22 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
-    protected Optional<DoiRequestSummary> toDoiRequestSummary(Item item) {
-        DoiRequestSummary doiRequestSummary = null;
-        try {
-            doiRequestSummary = objectMapper.readValue(item.toJSON(), DoiRequestSummary.class);
-        } catch (JsonProcessingException e) {
-            logger.info("Error mapping Item to DoiRequestSummary", e);
-        }
-        return Optional.ofNullable(doiRequestSummary);
-    }
-
     private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
         RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
         rangeKeyCondition.beginsWith(status.toString());
         return rangeKeyCondition;
     }
 
-    private Stream<Publication> fetchPublicationsByPubisherAndStatus(URI publisher, DoiRequestStatus status)
+    private List<Publication> fetchPublicationsByPublisherAndStatus(URI publisher, DoiRequestStatus status)
         throws DynamoDBException {
-
         return
             attempt(() -> limitKeyRangeToStatus(status))
                 .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
-                //TODO: update doiRequestIndex so that we can get the entire publication at once.
-                .map(this::extractPublicationIds)
-                .map(this::fetchPublications)
+                .map(this::extractPublications)
                 .orElseThrow(this::handleErrorFetchingPublications);
     }
 
-    private DynamoDBException handleErrorFetchingPublications(Failure<Stream<Publication>> fail) {
+    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
         return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
     }
 
@@ -179,29 +164,18 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             statusLimitedRange);
     }
 
-    private Stream<Publication> fetchPublications(List<String> publicationIds) {
-        return publicationIds
-            .stream().parallel()
-            .map(id -> attempt(() -> fetchPublication(UUID.fromString(id))))
-            .flatMap(this::attemptToStream);
+    private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
+        List<Publication> publications = new ArrayList<>();
+
+        for (Item item : outcome) {
+            addPublicationToList(publications, item);
+        }
+        return publications;
     }
 
-    private Stream<Publication> attemptToStream(Try<Publication> attempt) {
-        return attempt.toOptional(this::logError).stream();
-    }
-
-    private void logError(Failure<Publication> fail) {
-        logger.error("Error fetching publication", fail.getException());
-    }
-
-    private List<String> extractPublicationIds(ItemCollection<QueryOutcome> outcome) {
-        List<String> publicationIds = new ArrayList<>();
-        outcome.forEach(out -> addIdToList(publicationIds, out));
-        return publicationIds;
-    }
-
-    private boolean addIdToList(List<String> publicationIds, Item out) {
-        return publicationIds.add(out.getString("identifier"));
+    private void addPublicationToList(List<Publication> publications, Item item) {
+        Publication publication = itemToPublication(item);
+        publications.add(publication);
     }
 
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
@@ -251,9 +225,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     private void putItem(Publication publication) {
         Item item = publicationToItem(publication);
-        PutItemSpec putItemSpec =
-            new PutItemSpec().withItem(item);
-
+        PutItemSpec putItemSpec = new PutItemSpec().withItem(item);
         publicationsTable.putItem(putItemSpec);
     }
 
@@ -261,9 +233,12 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
-            .orElseThrow(() -> new NotFoundException(String.format(
-                ERROR_MESSAGE_PUBLICATION_WITH_IDENTIFIER_S_NOT_FOUND,
-                publicationId.toString())));
+            .orElseThrow(() -> handlePublicationNotFoundError(publicationId));
+    }
+
+    private NotFoundException handlePublicationNotFoundError(UUID publicationId) {
+        logger.error(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationId.toString());
+        return new NotFoundException(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationId.toString());
     }
 
     private Publication itemToPublication(Item item) {
@@ -296,11 +271,5 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .withScanIndexForward(false)
             .withMaxResultSize(SINGLE_ITEM);
         return query;
-    }
-
-    private List<DoiRequestSummary> parseJsonToDoiRequestSummaries(ItemCollection<QueryOutcome> items) {
-        List<DoiRequestSummary> doiRequestSummaries = new ArrayList<>();
-        items.forEach(item -> DoiRequestSummary.fromItem(item).ifPresent(doiRequestSummaries::add));
-        return doiRequestSummaries;
     }
 }

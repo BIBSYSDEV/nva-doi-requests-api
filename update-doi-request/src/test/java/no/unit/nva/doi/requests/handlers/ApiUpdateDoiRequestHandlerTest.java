@@ -2,7 +2,6 @@ package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
-import static no.unit.nva.doi.requests.model.AbstractDoiRequest.PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
@@ -29,9 +28,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
@@ -123,7 +122,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_NOT_FOUND)));
 
         assertThat(details.getDetail(),
-            containsString(String.format(PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT, notExistingPublicationIdentifier)));
+            containsString(DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE
+                + notExistingPublicationIdentifier));
     }
 
     @Test
@@ -214,7 +214,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
 
         DoiRequestSummary actualDoiRequestSummary = readPublicationDirectlyFromDynamo(publication.getIdentifier());
-        DoiRequestSummary expectedDoiRequestSummary = expectedDoiRequestSummary(publication);
+
+        DoiRequestSummary expectedDoiRequestSummary = expectedDoiRequestSummary(publication, actualDoiRequestSummary);
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
 
@@ -254,16 +255,16 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return doiRequestsService.fetchDoiRequest(id).orElseThrow();
     }
 
-    private DoiRequestSummary expectedDoiRequestSummary(Publication publication) {
+    private DoiRequestSummary expectedDoiRequestSummary(Publication publication,
+                                                        DoiRequestSummary actualDoiRequestSummary) {
         var includedDoiRequest = new DoiRequest.Builder()
             .withDate(mockNow)
             .withStatus(DoiRequestStatus.APPROVED)
             .build();
-        return new DoiRequestSummary(
-            publication.getIdentifier(),
-            publication.getOwner(),
-            includedDoiRequest,
-            publication.getEntityDescription());
+        publication.setDoiRequest(includedDoiRequest);
+        // copy actual modified date because it is set in Publication class by uncontrollable clock.
+        publication.setModifiedDate(actualDoiRequestSummary.getPublicationModifiedDate());
+        return DoiRequestSummary.fromPublication(publication);
     }
 
     private Publication insertPublicationWithDoiRequest(Clock clock)

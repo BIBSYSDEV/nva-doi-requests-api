@@ -3,7 +3,8 @@ package no.unit.nva.doi.requests.api.model.responses;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static nva.commons.utils.attempt.Try.attempt;
 
-import com.amazonaws.services.dynamodbv2.document.Item;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.Instant;
 import java.util.Objects;
@@ -37,8 +38,14 @@ public class DoiRequestSummary {
 
     private final DoiRequestIdentity doiRequestIdentity;
 
-    public DoiRequestSummary(DoiRequestIdentity doiRequestIdentity, String owner, DoiRequest doiRequest,
-                             String publicationTitle, Instant publicationModifiedDate, String publisherId) {
+    @JsonCreator
+    public DoiRequestSummary(
+        @JsonProperty("doiRequestIdentity") DoiRequestIdentity doiRequestIdentity,
+        @JsonProperty("owner") String owner,
+        @JsonProperty("doiRequest") DoiRequest doiRequest,
+        @JsonProperty("publicationTitle") String publicationTitle,
+        @JsonProperty("publicationModifiedDate") Instant publicationModifiedDate,
+        @JsonProperty("publisherId") String publisherId) {
         this.doiRequestIdentity = doiRequestIdentity;
         this.owner = owner;
         this.doiRequest = doiRequest;
@@ -46,7 +53,7 @@ public class DoiRequestSummary {
         this.publicationModifiedDate = publicationModifiedDate;
         this.publisherId = publisherId;
     }
-    
+
     /**
      * Creates DoiRequest summary from a publication.
      *
@@ -65,22 +72,9 @@ public class DoiRequestSummary {
         );
     }
 
-    public static Optional<DoiRequestSummary> fromItem(Item item) {
-        return attempt(() -> parseItem(item)).toOptional(fail -> logFailure(fail, item));
-    }
-
     private static String extractTitle(Publication publication) {
         return Optional.of(publication.getEntityDescription())
             .map(EntityDescription::getMainTitle).orElse(null);
-    }
-
-    private static DoiRequestSummary parseItem(Item item) throws JsonProcessingException {
-        return objectMapper.readValue(item.toJSON(), DoiRequestSummary.class);
-    }
-
-    private static void logFailure(Failure<DoiRequestSummary> fail, Item item) {
-        logger.error(DOI_REQUEST_PARSING_ERROR_LOG_MESSAGE + item.toJSONPretty());
-        logger.error("Exception", fail.getException());
     }
 
     public String getOwner() {
@@ -108,6 +102,7 @@ public class DoiRequestSummary {
     }
 
     @Override
+    @JacocoGenerated
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -125,6 +120,7 @@ public class DoiRequestSummary {
     }
 
     @Override
+    @JacocoGenerated
     public int hashCode() {
         return Objects.hash(getOwner(), getPublicationTitle(), getPublicationModifiedDate(), getDoiRequest(),
             getPublisherId(), getDoiRequestIdentity());

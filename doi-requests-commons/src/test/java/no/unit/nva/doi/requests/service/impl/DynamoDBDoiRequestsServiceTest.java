@@ -18,7 +18,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.dynamodbv2.document.Index;
-import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,9 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
+import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
@@ -41,6 +40,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -134,8 +134,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertEquals(DynamoDBDoiRequestsService.ERROR_READING_FROM_TABLE, exception.getMessage());
     }
 
-
-
     @Test
     public void fetchDoiRequestByPublicationIdReturnsDoiRequestSummary()
         throws JsonProcessingException, NotFoundException {
@@ -143,6 +141,27 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publication);
         Optional<DoiRequestSummary> result = service.fetchDoiRequest(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
+    }
+
+    @Test
+    public void fetchDoiRequestByPublicationErrorWhenIndexSearchFails()
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
+
+        Table table = mock(Table.class);
+        Index index = mock(Index.class);
+        var expectedMessage = "Index search failed";
+        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
+            invocation -> {
+                throw new RuntimeException(expectedMessage);
+            });
+
+        service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
+        Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
+            publication.getPublisher().getId(),
+            DoiRequestStatus.REQUESTED);
+        DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
+        assertThat(exception.getCause().getMessage(), is(equalTo(expectedMessage)));
     }
 
     @Test
