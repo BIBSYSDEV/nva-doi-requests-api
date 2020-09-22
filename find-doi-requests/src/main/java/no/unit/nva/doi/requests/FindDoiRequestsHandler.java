@@ -62,8 +62,6 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     @Override
     protected DoiRequestsResponse processInput(Void input, String apiGatewayInputString, Context context)
         throws ApiGatewayException {
-        logger.info("Whole event below");
-        logger.info(apiGatewayInputString);
         return super.processInput(input, apiGatewayInputString, context);
     }
 
