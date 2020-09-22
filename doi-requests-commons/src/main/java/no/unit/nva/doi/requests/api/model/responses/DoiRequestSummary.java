@@ -6,10 +6,12 @@ import static nva.commons.utils.attempt.Try.attempt;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.EntityDescription;
 import no.unit.nva.model.Publication;
@@ -18,33 +20,32 @@ import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = Id.NAME, property = "type")
 @SuppressWarnings("PMD.ExcessivePublicCount")
 public class DoiRequestSummary {
 
     public static final String LOG_SERIALIZATION_ERROR_MESSAGE = "Could not serialize object:";
     private static final Logger logger = LoggerFactory.getLogger(DoiRequestSummary.class);
+    public final UUID id;
     private final String owner;
-    private final String publicationTitle;
-    private final Instant publicationModifiedDate;
+    private final String mainTitle;
+    private final Instant modifiedDate;
     private final DoiRequest doiRequest;
     private final String publisherId;
 
-    private final DoiRequestIdentity doiRequestIdentity;
-
     @JsonCreator
     public DoiRequestSummary(
-        @JsonProperty("doiRequestIdentity") DoiRequestIdentity doiRequestIdentity,
+        @JsonProperty("id") UUID id,
         @JsonProperty("owner") String owner,
         @JsonProperty("doiRequest") DoiRequest doiRequest,
-        @JsonProperty("publicationTitle") String publicationTitle,
-        @JsonProperty("publicationModifiedDate") Instant publicationModifiedDate,
+        @JsonProperty("mailTitle") String mainTitle,
+        @JsonProperty("modifiedDate") Instant modifiedDate,
         @JsonProperty("publisherId") String publisherId) {
-        this.doiRequestIdentity = doiRequestIdentity;
+        this.id = id;
         this.owner = owner;
         this.doiRequest = doiRequest;
-        this.publicationTitle = publicationTitle;
-        this.publicationModifiedDate = publicationModifiedDate;
+        this.mainTitle = mainTitle;
+        this.modifiedDate = modifiedDate;
         this.publisherId = publisherId;
     }
 
@@ -55,12 +56,11 @@ public class DoiRequestSummary {
      * @return a DoiRequestSummary.
      */
     public static DoiRequestSummary fromPublication(Publication publication) {
-        var doiRequestIdentity = new DoiRequestIdentity(publication.getIdentifier());
-        String mainTitle = extractTitle(publication);
-        return new DoiRequestSummary(doiRequestIdentity,
+
+        return new DoiRequestSummary(publication.getIdentifier(),
             publication.getOwner(),
             publication.getDoiRequest(),
-            mainTitle,
+            extractTitle(publication),
             publication.getModifiedDate(),
             publication.getPublisherId()
         );
@@ -71,32 +71,7 @@ public class DoiRequestSummary {
             .map(EntityDescription::getMainTitle).orElse(null);
     }
 
-    public String getOwner() {
-        return owner;
-    }
-
-    public String getPublicationTitle() {
-        return publicationTitle;
-    }
-
-    public Instant getPublicationModifiedDate() {
-        return publicationModifiedDate;
-    }
-
-    public DoiRequest getDoiRequest() {
-        return doiRequest;
-    }
-
-    public String getPublisherId() {
-        return publisherId;
-    }
-
-    public DoiRequestIdentity getDoiRequestIdentity() {
-        return doiRequestIdentity;
-    }
-
     @Override
-    @JacocoGenerated
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -105,19 +80,41 @@ public class DoiRequestSummary {
             return false;
         }
         DoiRequestSummary that = (DoiRequestSummary) o;
-        return Objects.equals(getOwner(), that.getOwner())
-            && Objects.equals(getPublicationTitle(), that.getPublicationTitle())
-            && Objects.equals(getPublicationModifiedDate(), that.getPublicationModifiedDate())
+        return Objects.equals(getId(), that.getId())
+            && Objects.equals(getOwner(), that.getOwner())
+            && Objects.equals(getMainTitle(), that.getMainTitle())
+            && Objects.equals(getModifiedDate(), that.getModifiedDate())
             && Objects.equals(getDoiRequest(), that.getDoiRequest())
-            && Objects.equals(getPublisherId(), that.getPublisherId())
-            && Objects.equals(getDoiRequestIdentity(), that.getDoiRequestIdentity());
+            && Objects.equals(getPublisherId(), that.getPublisherId());
     }
 
     @Override
-    @JacocoGenerated
     public int hashCode() {
-        return Objects.hash(getOwner(), getPublicationTitle(), getPublicationModifiedDate(), getDoiRequest(),
-            getPublisherId(), getDoiRequestIdentity());
+        return Objects.hash(getId(), getOwner(), getMainTitle(), getModifiedDate(), getDoiRequest(), getPublisherId());
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public String getMainTitle() {
+        return mainTitle;
+    }
+
+    public Instant getModifiedDate() {
+        return modifiedDate;
+    }
+
+    public DoiRequest getDoiRequest() {
+        return doiRequest;
+    }
+
+    public String getPublisherId() {
+        return publisherId;
     }
 
     @Override

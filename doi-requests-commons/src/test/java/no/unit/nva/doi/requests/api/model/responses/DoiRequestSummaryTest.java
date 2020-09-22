@@ -16,7 +16,7 @@ class DoiRequestSummaryTest {
         DoiRequest doiRequest = new DoiRequest();
         DoiRequestSummary doiRequestSummary =
             new DoiRequestSummary(
-                new DoiRequestIdentity(UUID.randomUUID()),
+                UUID.randomUUID(),
                 "owner", doiRequest,
                 "publicationTitle",
                 Instant.now(),

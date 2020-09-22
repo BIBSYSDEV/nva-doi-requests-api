@@ -2,6 +2,7 @@ package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.model.AbstractDoiRequest.INVALID_PUBLICATION_ID_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
@@ -122,8 +123,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_NOT_FOUND)));
 
         assertThat(details.getDetail(),
-            containsString(DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE
-                + notExistingPublicationIdentifier));
+            containsString(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + notExistingPublicationIdentifier));
     }
 
     @Test
@@ -263,7 +263,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .build();
         publication.setDoiRequest(includedDoiRequest);
         // copy actual modified date because it is set in Publication class by uncontrollable clock.
-        publication.setModifiedDate(actualDoiRequestSummary.getPublicationModifiedDate());
+        publication.setModifiedDate(actualDoiRequestSummary.getModifiedDate());
         return DoiRequestSummary.fromPublication(publication);
     }
 
