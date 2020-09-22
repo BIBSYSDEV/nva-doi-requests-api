@@ -17,14 +17,6 @@ import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * { "doiRequest": { "date": "2020-09-08T10:11:28.964774Z", "messages": [ { "author": "kjmo@unit.no", "timestamp":
- * "2020-09-08T10:11:28.964779Z", "type": "DoiRequestMessage" } ], "status": "REQUESTED", "type": "DoiRequest" },
- * "doiRequestStatusDate": "REQUESTED#2020-09-08T10:11:28.964774Z", "identifier":
- * "aea76470-39af-4943-b876-061f7576baa5",
- * "modifiedDate": "2020-09-08T09:57:36.872369Z", "publisherId": "https://api.dev.nva.aws.unit
- * .no/customer/f54c8aa9-073a-46a1-8f7c-dde66c853934" }
- */
 public class DoiRequestSummary {
 
     public static final String LOG_SERIALIZATION_ERROR_MESSAGE = "Could not serialize object:";
