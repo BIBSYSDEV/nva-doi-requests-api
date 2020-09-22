@@ -5,6 +5,7 @@ import static nva.commons.utils.attempt.Try.attempt;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.Instant;
 import java.util.Objects;
@@ -17,6 +18,8 @@ import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@SuppressWarnings("PMD.ExcessivePublicCount")
 public class DoiRequestSummary {
 
     public static final String LOG_SERIALIZATION_ERROR_MESSAGE = "Could not serialize object:";
