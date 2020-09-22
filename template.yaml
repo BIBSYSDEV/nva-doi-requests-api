@@ -56,7 +56,7 @@ Resources:
             get:
               summary: Find DOI Requests By Role
               security:
-                - CognitoUserPool: []
+                - CognitoUserPool: [ ]
               parameters:
                 - in: query
                   name: role
@@ -71,7 +71,7 @@ Resources:
                       schema:
                         type: array
                         items:
-                          $ref: '#/components/schemas/DoiRequestSummary'
+                          $ref: '#/components/schemas/Publication'
                 '400':
                   description: Bad Request
                   content:
@@ -129,21 +129,8 @@ Resources:
                 type: AWS_PROXY
         components:
           schemas:
-            DoiRequestSummary:
+            Publication:
               type: object
-              properties:
-                doiRequestStatus:
-                  type: string
-                doiRequestDate:
-                  type: string
-                  format: date-time
-                publicationIdentifier:
-                  type: string
-                  format: uuid
-                publicationTitle:
-                  type: string
-                publicationCreator:
-                  type: string
             CreateDoiRequest:
               type: object
               properties:

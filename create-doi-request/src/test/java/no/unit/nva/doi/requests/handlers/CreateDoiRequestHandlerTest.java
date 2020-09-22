@@ -22,7 +22,6 @@ import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
@@ -119,10 +118,10 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         ByteArrayOutputStream output = outputStream();
         handler.handleRequest(input, output, context);
 
-        DoiRequestSummary actualDoiRequestSummary = readPublicationDirectlyFromDynamo(doiRequest);
-        DoiRequestSummary expectedDoiRequestSummary = expectedDoiRequestSummary(publication);
+        Publication actualPublication = readPublicationDirectlyFromDynamo(doiRequest);
+        Publication expectedPublication = expectedPublicationAfterDoiRequestUpdate(publication);
 
-        assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
+        assertThat(actualPublication, is(equalTo(expectedPublication)));
     }
 
     @Test
@@ -183,18 +182,17 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return GatewayResponse.fromOutputStream(output);
     }
 
-    private DoiRequestSummary expectedDoiRequestSummary(Publication publication) {
+    private Publication expectedPublicationAfterDoiRequestUpdate(Publication publication) {
         DoiRequest includedDoiRequest = new DoiRequest.Builder()
             .withDate(mockNow)
             .withStatus(DoiRequestStatus.REQUESTED)
             .build();
-        publication.setDoiRequest(includedDoiRequest);
-        return DoiRequestSummary.fromPublication(publication);
+        return publication.copy().withDoiRequest(includedDoiRequest).build();
     }
 
-    private DoiRequestSummary readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
+    private Publication readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
         throws JsonProcessingException, NotFoundException {
-        return doiRequestsService.fetchDoiRequest(
+        return doiRequestsService.fetchDoiRequestByPublicationId(
             UUID.fromString(doiRequest.getPublicationId()))
             .orElseThrow();
     }

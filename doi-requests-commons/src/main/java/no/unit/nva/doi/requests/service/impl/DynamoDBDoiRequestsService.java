@@ -25,7 +25,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
@@ -94,27 +93,27 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public List<DoiRequestSummary> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
+    public List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
         throws ApiGatewayException {
-        List<Publication> publications = fetchPublicationsByPublisherAndStatus(publisher, status);
-        return publications
-            .stream().parallel()
-            .map(DoiRequestSummary::fromPublication).collect(Collectors.toList());
+        return attempt(() -> limitKeyRangeToStatus(status))
+            .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
+            .map(this::extractPublications)
+            .orElseThrow(this::handleErrorFetchingPublications);
     }
 
     @Override
-    public List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
+    public List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException {
         return findDoiRequestsByStatus(publisher, status)
             .stream().parallel()
-            .filter(doiRequestSummary -> doiRequestSummary.getOwner().equals(owner))
+            .filter(publication -> belongsToUser(owner, publication))
             .collect(Collectors.toList());
     }
 
     @Override
-    public Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws NotFoundException {
-        Publication publication = fetchPublication(publicationId);
-        return Optional.of(DoiRequestSummary.fromPublication(publication));
+    public Optional<Publication> fetchDoiRequestByPublicationId(UUID publicationId) throws NotFoundException {
+        Publication publication = fetchPublicationById(publicationId);
+        return Optional.of(publication);
     }
 
     @Override
@@ -133,25 +132,20 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
         throws NotFoundException, ForbiddenException {
-        Publication publication = fetchPublication(publicationID);
+        Publication publication = fetchPublicationById(publicationID);
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
+    }
+
+    private boolean belongsToUser(String owner, Publication publication) {
+        return nonNull(publication.getOwner()) && publication.getOwner().equals(owner);
     }
 
     private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
         RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
         rangeKeyCondition.beginsWith(status.toString());
         return rangeKeyCondition;
-    }
-
-    private List<Publication> fetchPublicationsByPublisherAndStatus(URI publisher, DoiRequestStatus status)
-        throws DynamoDBException {
-        return
-            attempt(() -> limitKeyRangeToStatus(status))
-                .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
-                .map(this::extractPublications)
-                .orElseThrow(this::handleErrorFetchingPublications);
     }
 
     private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
@@ -180,7 +174,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
         throws NotFoundException, ForbiddenException {
-        var publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
+        var publication = fetchPublicationById(UUID.fromString(createDoiRequest.getPublicationId()));
         validateUsername(publication, username);
         return publication;
     }
@@ -209,7 +203,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private void validateUsername(Publication publication, String username) throws ForbiddenException {
-        if (!(publication.getOwner().equals(username))) {
+        if (!(belongsToUser(username, publication))) {
             logger.warn(String.format(WRONG_OWNER_ERROR, username, publication.getOwner()));
             throw new ForbiddenException();
         }
@@ -229,7 +223,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         publicationsTable.putItem(putItemSpec);
     }
 
-    private Publication fetchPublication(UUID publicationId) throws NotFoundException {
+    private Publication fetchPublicationById(UUID publicationId) throws NotFoundException {
         QuerySpec query = buildQuery(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)

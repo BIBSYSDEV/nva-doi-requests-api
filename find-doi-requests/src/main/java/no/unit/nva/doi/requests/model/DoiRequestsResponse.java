@@ -2,19 +2,19 @@ package no.unit.nva.doi.requests.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
+import no.unit.nva.model.Publication;
 
-public class DoiRequestsResponse extends ArrayList<DoiRequestSummary> {
+public class DoiRequestsResponse extends ArrayList<Publication> {
 
     /**
      * Creates DoiRequestResponse from list of DoiRequestSummary.
      *
-     * @param doiRequests   list of DoiRequestSummary
-     * @return  doiRequestResponse
+     * @param publication list of Publication
+     * @return doiRequestResponse
      */
-    public static DoiRequestsResponse of(List<DoiRequestSummary> doiRequests) {
+    public static DoiRequestsResponse of(List<Publication> publication) {
         DoiRequestsResponse response = new DoiRequestsResponse();
-        response.addAll(doiRequests);
+        response.addAll(publication);
         return response;
     }
 

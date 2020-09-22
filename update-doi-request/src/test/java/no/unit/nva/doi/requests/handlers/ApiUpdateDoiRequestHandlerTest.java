@@ -29,7 +29,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
@@ -213,9 +212,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
 
-        DoiRequestSummary actualDoiRequestSummary = readPublicationDirectlyFromDynamo(publication.getIdentifier());
+        Publication actualDoiRequestSummary = readPublicationDirectlyFromDynamo(publication.getIdentifier());
 
-        DoiRequestSummary expectedDoiRequestSummary = expectedDoiRequestSummary(publication, actualDoiRequestSummary);
+        Publication expectedDoiRequestSummary = expectedDoiRequestSummary(publication, actualDoiRequestSummary);
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
 
@@ -251,20 +250,20 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return publication.getOwner();
     }
 
-    private DoiRequestSummary readPublicationDirectlyFromDynamo(UUID id) throws NotFoundException {
-        return doiRequestsService.fetchDoiRequest(id).orElseThrow();
+    private Publication readPublicationDirectlyFromDynamo(UUID id) throws NotFoundException {
+        return doiRequestsService.fetchDoiRequestByPublicationId(id).orElseThrow();
     }
 
-    private DoiRequestSummary expectedDoiRequestSummary(Publication publication,
-                                                        DoiRequestSummary actualDoiRequestSummary) {
+    private Publication expectedDoiRequestSummary(Publication originalPublication,
+                                                  Publication updatedPublication) {
         var includedDoiRequest = new DoiRequest.Builder()
             .withDate(mockNow)
             .withStatus(DoiRequestStatus.APPROVED)
             .build();
-        publication.setDoiRequest(includedDoiRequest);
         // copy actual modified date because it is set in Publication class by uncontrollable clock.
-        publication.setModifiedDate(actualDoiRequestSummary.getModifiedDate());
-        return DoiRequestSummary.fromPublication(publication);
+
+        return originalPublication.copy().withDoiRequest(includedDoiRequest)
+            .withModifiedDate(updatedPublication.getModifiedDate()).build();
     }
 
     private Publication insertPublicationWithDoiRequest(Clock clock)
