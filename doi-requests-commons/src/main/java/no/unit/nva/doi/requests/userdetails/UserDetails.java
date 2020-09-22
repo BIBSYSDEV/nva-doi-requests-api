@@ -2,6 +2,7 @@ package no.unit.nva.doi.requests.userdetails;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import nva.commons.handlers.RequestInfo;
+import nva.commons.utils.JacocoGenerated;
 
 public final class UserDetails {
 
@@ -10,6 +11,11 @@ public final class UserDetails {
     public static final JsonPointer CUSTOMER_ID = JsonPointer.compile("/authorizer/claims/custom:customerId");
     public static final JsonPointer APPLICATION_ROLES = JsonPointer.compile(
         "/authorizer/claims/custom:applicationRoles");
+
+    @JacocoGenerated
+    private UserDetails() {
+
+    }
 
     public static String getUsername(RequestInfo requestInfo) {
         return requestInfo.getRequestContextParameter(FEIDE_ID);

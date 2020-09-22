@@ -35,7 +35,7 @@ subprojects {
 
 
     dependencies {
-        testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.8'
+        testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.13'
         testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
         testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.2.4'
         testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.junit5Version
@@ -86,7 +86,7 @@ subprojects {
                 limit {
                     counter = 'METHOD'
                     value = 'COVEREDRATIO'
-                    minimum = 0.9
+                    minimum = 1.000
 
                 }
             }
@@ -95,7 +95,7 @@ subprojects {
                 limit {
                     counter = 'CLASS'
                     value = 'COVEREDRATIO'
-                    minimum = 0.9
+                    minimum = 1.000
 
                 }
             }
