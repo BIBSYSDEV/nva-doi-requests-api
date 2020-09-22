@@ -60,12 +60,6 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     }
 
     @Override
-    protected DoiRequestsResponse processInput(Void input, String apiGatewayInputString, Context context)
-        throws ApiGatewayException {
-        return super.processInput(input, apiGatewayInputString, context);
-    }
-
-    @Override
     protected DoiRequestsResponse processInput(Void input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
 
