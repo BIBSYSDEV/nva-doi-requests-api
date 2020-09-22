@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
  */
 public class DoiRequestSummary {
 
-    public static final String DOI_REQUEST_PARSING_ERROR_LOG_MESSAGE = "DoiRequestSummary parsing failed for item: ";
     public static final String LOG_SERIALIZATION_ERROR_MESSAGE = "Could not serialize object:";
     private static final Logger logger = LoggerFactory.getLogger(DoiRequestSummary.class);
     private final String owner;
