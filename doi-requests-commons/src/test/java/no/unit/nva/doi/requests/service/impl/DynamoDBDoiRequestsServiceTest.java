@@ -2,10 +2,13 @@ package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
+import static no.unit.nva.model.DoiRequestStatus.APPROVED;
+import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -56,6 +59,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     public static final String DEFAULT_MESSAGE = "defaultMessage";
     public static final String INVALID_USERNAME = "invalidUsername";
+    public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
+    public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
     private final Instant mockedNow = Instant.now();
     private DynamoDBDoiRequestsService service;
     private Environment environment;
@@ -83,8 +88,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertTrue(doiRequestSummaries.isEmpty());
     }
@@ -96,8 +100,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(PublicationGenerator.getPublicationWithDoiRequest());
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(3, doiRequestSummaries.size());
     }
@@ -113,8 +116,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publicationOwnedByAnother);
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            DoiRequestStatus.REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(2, doiRequestSummaries.size());
     }
@@ -127,8 +129,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(
             JsonUtils.objectMapper, getTable(), index);
         DynamoDBException exception = assertThrows(DynamoDBException.class,
-            () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID,
-                DoiRequestStatus.REQUESTED));
+            () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID, REQUESTED));
 
         assertEquals(DynamoDBDoiRequestsService.ERROR_READING_FROM_TABLE, exception.getMessage());
     }
@@ -152,8 +153,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
         Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
-            publication.getPublisher().getId(),
-            DoiRequestStatus.REQUESTED);
+            publication.getPublisher().getId(), REQUESTED);
         DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
 
         assertThat(exception.getCause().getMessage(), is(equalTo(expectedMessage)));
@@ -265,6 +265,30 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(exception.getMessage(), containsString(exceptionMessage));
     }
 
+    @Test
+    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
+        throws NotFoundException, ForbiddenException, IOException {
+
+        Publication publication = PublicationGenerator.getPublicationWithDoiRequest(clock);
+        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
+        insertPublication(publication);
+
+        service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
+
+        DoiRequestSummary doiRequestSummary = service.fetchDoiRequest(publication.getIdentifier()).orElseThrow();
+        DoiRequest actualDoiRequest = doiRequestSummary.getDoiRequest();
+
+        assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
+
+        assertThatModifiedDateIsUpdated(publication, doiRequestSummary);
+    }
+
+    private void assertThatModifiedDateIsUpdated(Publication publication, DoiRequestSummary doiRequestSummary) {
+        var newModifiedDate = doiRequestSummary.getModifiedDate();
+        var oldModifiedDate = publication.getModifiedDate();
+        assertThat(newModifiedDate, is(greaterThan(oldModifiedDate)));
+    }
+
     private Index indexThrowingException(String expectedMessage) {
         Index index = mock(Index.class);
         when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
@@ -330,7 +354,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         return new DoiRequest.Builder()
             .withDate(mockedNow)
             .withMessages(Collections.singletonList(message))
-            .withStatus(DoiRequestStatus.REQUESTED)
+            .withStatus(REQUESTED)
             .build();
     }
 
