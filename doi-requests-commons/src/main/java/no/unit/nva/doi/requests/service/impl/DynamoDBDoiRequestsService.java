@@ -103,11 +103,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
+    public List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String user)
         throws ApiGatewayException {
         return findDoiRequestsByStatus(publisher, status)
             .stream().parallel()
-            .filter(doiRequestSummary -> doiRequestSummary.getOwner().equals(owner))
+            .filter(doiRequestSummary -> belongsToUser(user, doiRequestSummary.getOwner()))
             .collect(Collectors.toList());
     }
 
@@ -122,8 +122,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         throws ConflictException, NotFoundException, ForbiddenException {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
-        assertThatPublicationHasNoPreviousDoiRequest(publication);
-
+        verifyThatPublicationHasNoPreviousDoiRequest(publication);
         var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
         publication.setDoiRequest(newDoiRequestEntry);
 
@@ -139,10 +138,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
-    private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
-        RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
-        rangeKeyCondition.beginsWith(status.toString());
-        return rangeKeyCondition;
+    private boolean belongsToUser(String user, String publicationOwner) {
+        return nonNull(publicationOwner) && publicationOwner.equals(user);
     }
 
     private List<Publication> fetchPublicationsByPublisherAndStatus(URI publisher, DoiRequestStatus status)
@@ -154,8 +151,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                 .orElseThrow(this::handleErrorFetchingPublications);
     }
 
-    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
-        return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
+    private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
+        RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
+        rangeKeyCondition.beginsWith(status.toString());
+        return rangeKeyCondition;
     }
 
     private ItemCollection<QueryOutcome> queryByPublisherAndStatus(URI publisher,
@@ -164,18 +163,17 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             statusLimitedRange);
     }
 
-    private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
-        List<Publication> publications = new ArrayList<>();
-
-        for (Item item : outcome) {
-            addPublicationToList(publications, item);
-        }
-        return publications;
+    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
+        return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
     }
 
-    private void addPublicationToList(List<Publication> publications, Item item) {
-        Publication publication = itemToPublication(item);
-        publications.add(publication);
+    private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
+        List<Publication> publications = new ArrayList<>();
+        for (Item item : outcome) {
+            Publication publication = itemToPublication(item);
+            publications.add(publication);
+        }
+        return publications;
     }
 
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
@@ -192,10 +190,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-    private void assertThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
-        if (nonNull(publication.getDoiRequest())) {
-            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
-        }
+    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
+        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
     }
 
     private DoiRequest.Builder doiRequestBuilderWithoutMessage() {
@@ -204,12 +200,14 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .withDate(Instant.now(clockForTimestamps));
     }
 
-    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
-        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
+    private void verifyThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
+        if (nonNull(publication.getDoiRequest())) {
+            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
+        }
     }
 
     private void validateUsername(Publication publication, String username) throws ForbiddenException {
-        if (!(publication.getOwner().equals(username))) {
+        if (!belongsToUser(username, publication.getOwner())) {
             logger.warn(String.format(WRONG_OWNER_ERROR, username, publication.getOwner()));
             throw new ForbiddenException();
         }
@@ -230,7 +228,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private Publication fetchPublication(UUID publicationId) throws NotFoundException {
-        QuerySpec query = buildQuery(publicationId);
+        QuerySpec query = queryForLastestPublicationWithId(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
             .orElseThrow(() -> handlePublicationNotFoundError(publicationId));
@@ -265,7 +263,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.empty();
     }
 
-    private QuerySpec buildQuery(UUID publicationId) {
+    private QuerySpec queryForLastestPublicationWithId(UUID publicationId) {
         QuerySpec query = new QuerySpec()
             .withHashKey(new KeyAttribute(PUBLICATION_ID_HASH_KEY_NAME, publicationId.toString()))
             .withScanIndexForward(false)
