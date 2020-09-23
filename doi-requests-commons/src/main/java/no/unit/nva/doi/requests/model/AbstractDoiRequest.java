@@ -10,7 +10,6 @@ import nva.commons.utils.JacocoGenerated;
 public abstract class AbstractDoiRequest {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
-    public static final String PUBLICATION_ID_NOT_FOUND_ERROR_FORMAT = "Publication with identifier %s not found.";
     private String publicationId;
 
     protected AbstractDoiRequest() {

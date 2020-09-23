@@ -18,7 +18,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.dynamodbv2.document.Index;
-import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,9 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
+import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
@@ -55,7 +54,6 @@ import org.junit.jupiter.api.function.Executable;
 
 public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
-    public static final String GARBAGE_JSON = "ʕ•ᴥ•ʔ";
     public static final String DEFAULT_MESSAGE = "defaultMessage";
     public static final String INVALID_USERNAME = "invalidUsername";
     private final Instant mockedNow = Instant.now();
@@ -136,20 +134,29 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void toDoiDoiRequestSummaryThrowsExceptionOnInvalidJsonItem() {
-        Item item = mock(Item.class);
-        when(item.toJSON()).thenReturn(GARBAGE_JSON);
-        Optional<DoiRequestSummary> doiRequestSummary = service.toDoiRequestSummary(item);
-        assertTrue(doiRequestSummary.isEmpty());
-    }
-
-    @Test
     public void fetchDoiRequestByPublicationIdReturnsDoiRequestSummary()
         throws JsonProcessingException, NotFoundException {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
         insertPublication(publication);
         Optional<DoiRequestSummary> result = service.fetchDoiRequest(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
+    }
+
+    @Test
+    public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
+        Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
+
+        var expectedMessage = "Index search failed";
+        var table = mock(Table.class);
+        var index = indexThrowingException(expectedMessage);
+
+        service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
+        Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
+            publication.getPublisher().getId(),
+            DoiRequestStatus.REQUESTED);
+        DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
+
+        assertThat(exception.getCause().getMessage(), is(equalTo(expectedMessage)));
     }
 
     @Test
@@ -258,6 +265,15 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(exception.getMessage(), containsString(exceptionMessage));
     }
 
+    private Index indexThrowingException(String expectedMessage) {
+        Index index = mock(Index.class);
+        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
+            invocation -> {
+                throw new RuntimeException(expectedMessage);
+            });
+        return index;
+    }
+
     private void assertThatServiceLogsCauseOfForbiddenError(TestAppender testAppender, Publication publication) {
         String logMessage = testAppender.getMessages();
         String expectedLogMessage = String.format(DynamoDBDoiRequestsService.WRONG_OWNER_ERROR, INVALID_USERNAME,
@@ -306,9 +322,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     private DoiRequestSummary createDoiRequestSummary(Publication publication, DoiRequest expectedDoiRequest) {
-        return new DoiRequestSummary(
-            publication.getIdentifier(), publication.getOwner(), expectedDoiRequest,
-            publication.getEntityDescription());
+        var publicationWithExpectedDoiRequest = publication.copy().withDoiRequest(expectedDoiRequest).build();
+        return DoiRequestSummary.fromPublication(publicationWithExpectedDoiRequest);
     }
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {

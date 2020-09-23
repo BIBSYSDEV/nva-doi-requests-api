@@ -68,6 +68,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String assignedRoles;
         String customerId;
         try {
+
             user = UserDetails.getUsername(requestInfo);
             assignedRoles = UserDetails.getAssignedRoles(requestInfo);
             customerId = UserDetails.getCustomerId(requestInfo);
@@ -91,11 +92,9 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         throws ApiGatewayException {
         List<DoiRequestSummary> doiRequests;
         if (requestedRole.equalsIgnoreCase(CREATOR)) {
-            doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(
-                publisher, REQUESTED, user);
+            doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(publisher, REQUESTED, user);
         } else if (requestedRole.equalsIgnoreCase(CURATOR)) {
-            doiRequests = doiRequestsService.findDoiRequestsByStatus(
-                publisher, REQUESTED);
+            doiRequests = doiRequestsService.findDoiRequestsByStatus(publisher, REQUESTED);
         } else {
             doiRequests = Collections.emptyList();
         }

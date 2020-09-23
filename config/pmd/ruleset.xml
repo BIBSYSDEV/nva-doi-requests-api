@@ -13,6 +13,10 @@
     <exclude name="DataflowAnomalyAnalysis"/>
     <exclude name="MissingSerialVersionUID"/>
     <exclude name="BeanMembersShouldSerialize"/>
+    <!-- allow adding exception to log
+         e.g logger.error(message,exception)
+    -->
+    <exclude name="InvalidLogMessageFormat"/>
   </rule>
 
   <rule ref="category/java/multithreading.xml"/>

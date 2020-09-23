@@ -1,46 +1,54 @@
 package no.unit.nva.doi.requests.api.model.responses;
 
+import static nva.commons.utils.JsonUtils.objectMapper;
+import static nva.commons.utils.attempt.Try.attempt;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonProperty.Access;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.model.DoiRequest;
-import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.EntityDescription;
 import no.unit.nva.model.Publication;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.attempt.Failure;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+@JsonTypeInfo(use = Id.NAME, property = "type")
+@SuppressWarnings("PMD.ExcessivePublicCount")
 public class DoiRequestSummary {
 
-    private final DoiRequestStatus doiRequestStatus;
-    private final Instant doiRequestDate;
-    private final UUID publicationIdentifier;
-    private final String publicationTitle;
-    private final String publicationOwner;
+    public static final String LOG_SERIALIZATION_ERROR_MESSAGE = "Could not serialize object:";
+    private static final Logger logger = LoggerFactory.getLogger(DoiRequestSummary.class);
+    public final UUID id;
+    private final String owner;
+    private final String mainTitle;
+    private final Instant modifiedDate;
+    private final DoiRequest doiRequest;
+    private final String publisherId;
 
-    /**
-     * Constructor for DoiRequestSummary.
-     *
-     * @param identifier        publication identifier
-     * @param owner             publication owner
-     * @param doiRequest        publication doiRequest
-     * @param entityDescription publication entityDescription
-     */
     @JsonCreator
-    public DoiRequestSummary(@JsonProperty(value = "identifier", access = Access.WRITE_ONLY) UUID identifier,
-                             @JsonProperty(value = "owner", access = Access.WRITE_ONLY) String owner,
-                             @JsonProperty(value = "doiRequest", access = Access.WRITE_ONLY) DoiRequest doiRequest,
-                             @JsonProperty(value = "entityDescription", access = Access.WRITE_ONLY)
-                                 EntityDescription entityDescription) {
-        this.doiRequestStatus = doiRequest.getStatus();
-        this.doiRequestDate = doiRequest.getDate();
-        this.publicationIdentifier = identifier;
-        this.publicationTitle = entityDescription.getMainTitle();
-        this.publicationOwner = owner;
+    public DoiRequestSummary(
+        @JsonProperty("id") UUID id,
+        @JsonProperty("owner") String owner,
+        @JsonProperty("doiRequest") DoiRequest doiRequest,
+        @JsonProperty("mailTitle") String mainTitle,
+        @JsonProperty("modifiedDate") Instant modifiedDate,
+        @JsonProperty("publisherId") String publisherId) {
+        this.id = id;
+        this.owner = owner;
+        this.doiRequest = doiRequest;
+        this.mainTitle = mainTitle;
+        this.modifiedDate = modifiedDate;
+        this.publisherId = publisherId;
     }
-    
+
     /**
      * Creates DoiRequest summary from a publication.
      *
@@ -48,36 +56,22 @@ public class DoiRequestSummary {
      * @return a DoiRequestSummary.
      */
     public static DoiRequestSummary fromPublication(Publication publication) {
-        return new DoiRequestSummary(
-            publication.getIdentifier(),
+
+        return new DoiRequestSummary(publication.getIdentifier(),
             publication.getOwner(),
             publication.getDoiRequest(),
-            publication.getEntityDescription()
+            extractTitle(publication),
+            publication.getModifiedDate(),
+            publication.getPublisherId()
         );
     }
 
-    public DoiRequestStatus getDoiRequestStatus() {
-        return doiRequestStatus;
-    }
-
-    public Instant getDoiRequestDate() {
-        return doiRequestDate;
-    }
-
-    public UUID getPublicationIdentifier() {
-        return publicationIdentifier;
-    }
-
-    public String getPublicationTitle() {
-        return publicationTitle;
-    }
-
-    public String getPublicationOwner() {
-        return publicationOwner;
+    private static String extractTitle(Publication publication) {
+        return Optional.of(publication.getEntityDescription())
+            .map(EntityDescription::getMainTitle).orElse(null);
     }
 
     @Override
-    @JacocoGenerated
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -86,17 +80,56 @@ public class DoiRequestSummary {
             return false;
         }
         DoiRequestSummary that = (DoiRequestSummary) o;
-        return doiRequestStatus == that.doiRequestStatus
-            && Objects.equals(doiRequestDate, that.doiRequestDate)
-            && Objects.equals(publicationIdentifier, that.publicationIdentifier)
-            && Objects.equals(publicationTitle, that.publicationTitle)
-            && Objects.equals(publicationOwner, that.publicationOwner);
+        return Objects.equals(getId(), that.getId())
+            && Objects.equals(getOwner(), that.getOwner())
+            && Objects.equals(getMainTitle(), that.getMainTitle())
+            && Objects.equals(getModifiedDate(), that.getModifiedDate())
+            && Objects.equals(getDoiRequest(), that.getDoiRequest())
+            && Objects.equals(getPublisherId(), that.getPublisherId());
     }
 
     @Override
-    @JacocoGenerated
     public int hashCode() {
-        return Objects.hash(doiRequestStatus, doiRequestDate, publicationIdentifier, publicationTitle,
-            publicationOwner);
+        return Objects.hash(getId(), getOwner(), getMainTitle(), getModifiedDate(), getDoiRequest(), getPublisherId());
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public String getOwner() {
+        return owner;
+    }
+
+    public String getMainTitle() {
+        return mainTitle;
+    }
+
+    public Instant getModifiedDate() {
+        return modifiedDate;
+    }
+
+    public DoiRequest getDoiRequest() {
+        return doiRequest;
+    }
+
+    public String getPublisherId() {
+        return publisherId;
+    }
+
+    @Override
+    public String toString() {
+        return attempt(this::toJsonString).orElse(this::failedSerializationWarning);
+    }
+
+    @JacocoGenerated
+    private String failedSerializationWarning(Failure<String> fail) {
+        String serializationAsWarning = LOG_SERIALIZATION_ERROR_MESSAGE + fail.getException().getMessage();
+        logger.error(LOG_SERIALIZATION_ERROR_MESSAGE, fail.getException());
+        return serializationAsWarning;
+    }
+
+    private String toJsonString() throws JsonProcessingException {
+        return objectMapper.writeValueAsString(this);
     }
 }
