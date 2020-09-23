@@ -260,10 +260,14 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .withDate(mockNow)
             .withStatus(DoiRequestStatus.APPROVED)
             .build();
-        // copy actual modified date because it is set in Publication class by uncontrollable clock.
 
-        return originalPublication.copy().withDoiRequest(includedDoiRequest)
-            .withModifiedDate(updatedPublication.getModifiedDate()).build();
+        return
+            originalPublication
+                .copy()
+                .withDoiRequest(includedDoiRequest)
+                // copy actual modified date because it is set in Publication class by uncontrollable clock.
+                .withModifiedDate(updatedPublication.getModifiedDate())
+                .build();
     }
 
     private Publication insertPublicationWithDoiRequest(Clock clock)
