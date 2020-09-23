@@ -98,7 +98,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         throws ApiGatewayException {
         List<Publication> publications = fetchPublicationsByPublisherAndStatus(publisher, status);
         return publications
-            .stream().parallel()
+            .stream()
+            .parallel()
             .map(DoiRequestSummary::fromPublication).collect(Collectors.toList());
     }
 
@@ -106,7 +107,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String user)
         throws ApiGatewayException {
         return findDoiRequestsByStatus(publisher, status)
-            .stream().parallel()
+            .stream()
+            .parallel()
             .filter(doiRequestSummary -> belongsToUser(user, doiRequestSummary.getOwner()))
             .collect(Collectors.toList());
     }

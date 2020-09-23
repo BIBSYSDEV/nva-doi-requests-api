@@ -88,8 +88,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertTrue(doiRequestSummaries.isEmpty());
     }
@@ -101,8 +100,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(PublicationGenerator.getPublicationWithDoiRequest());
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(3, doiRequestSummaries.size());
     }
@@ -118,8 +116,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publicationOwnedByAnother);
 
         List<DoiRequestSummary> doiRequestSummaries = service.findDoiRequestsByStatusAndOwner(
-            PublicationGenerator.PUBLISHER_ID,
-            REQUESTED, PublicationGenerator.OWNER);
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(2, doiRequestSummaries.size());
     }
@@ -132,8 +129,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(
             JsonUtils.objectMapper, getTable(), index);
         DynamoDBException exception = assertThrows(DynamoDBException.class,
-            () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID,
-                REQUESTED));
+            () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID, REQUESTED));
 
         assertEquals(DynamoDBDoiRequestsService.ERROR_READING_FROM_TABLE, exception.getMessage());
     }
@@ -157,8 +153,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
         Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
-            publication.getPublisher().getId(),
-            REQUESTED);
+            publication.getPublisher().getId(), REQUESTED);
         DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
 
         assertThat(exception.getCause().getMessage(), is(equalTo(expectedMessage)));
