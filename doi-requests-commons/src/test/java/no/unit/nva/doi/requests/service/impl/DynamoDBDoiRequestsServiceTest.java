@@ -266,7 +266,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void updateDoiRequestUpdatesStatusAndModifiedDateForValidInput()
+    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
         throws NotFoundException, ForbiddenException, IOException {
 
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest(clock);
@@ -279,6 +279,11 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DoiRequest actualDoiRequest = doiRequestSummary.getDoiRequest();
 
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
+
+        assertThatModifiedDateIsUpdated(publication, doiRequestSummary);
+    }
+
+    private void assertThatModifiedDateIsUpdated(Publication publication, DoiRequestSummary doiRequestSummary) {
         var newModifiedDate = doiRequestSummary.getModifiedDate();
         var oldModifiedDate = publication.getModifiedDate();
         assertThat(newModifiedDate, is(greaterThan(oldModifiedDate)));
