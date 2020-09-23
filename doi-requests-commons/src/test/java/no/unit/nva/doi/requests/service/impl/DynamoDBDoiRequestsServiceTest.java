@@ -43,7 +43,6 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
-import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -149,23 +148,19 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void fetchDoiRequestByPublicationErrorWhenIndexSearchFails()
-        throws JsonProcessingException, ApiGatewayException {
+    public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
         Publication publication = PublicationGenerator.getPublicationWithDoiRequest();
 
-        Table table = mock(Table.class);
-        Index index = mock(Index.class);
         var expectedMessage = "Index search failed";
-        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
-            invocation -> {
-                throw new RuntimeException(expectedMessage);
-            });
+        var table = mock(Table.class);
+        var index = indexThrowingException(expectedMessage);
 
         service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
         Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
             publication.getPublisher().getId(),
             REQUESTED);
         DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
+
         assertThat(exception.getCause().getMessage(), is(equalTo(expectedMessage)));
     }
 
@@ -290,6 +285,15 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
         assertThat(doiRequestSummary.getModifiedDate(), is(greaterThan(publication.getModifiedDate())));
+    }
+
+    private Index indexThrowingException(String expectedMessage) {
+        Index index = mock(Index.class);
+        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
+            invocation -> {
+                throw new RuntimeException(expectedMessage);
+            });
+        return index;
     }
 
     private void assertThatServiceLogsCauseOfForbiddenError(TestAppender testAppender, Publication publication) {

@@ -151,7 +151,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
-        GatewayResponse<Problem> response = sendRequest(doiRequest, validUsername(publication));
+        String validUsername = publication.getOwner();
+        GatewayResponse<Problem> response = sendRequest(doiRequest, validUsername);
         Problem problem = response.getBodyObject(Problem.class);
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CONFLICT)));
