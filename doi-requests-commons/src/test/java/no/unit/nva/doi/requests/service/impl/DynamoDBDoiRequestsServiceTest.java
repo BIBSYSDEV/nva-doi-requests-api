@@ -279,7 +279,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DoiRequest actualDoiRequest = doiRequestSummary.getDoiRequest();
 
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
-        assertThat(doiRequestSummary.getModifiedDate(), is(greaterThan(publication.getModifiedDate())));
+        var newModifiedDate = doiRequestSummary.getModifiedDate();
+        var oldModifiedDate = publication.getModifiedDate();
+        assertThat(newModifiedDate, is(greaterThan(oldModifiedDate)));
     }
 
     private Index indexThrowingException(String expectedMessage) {
