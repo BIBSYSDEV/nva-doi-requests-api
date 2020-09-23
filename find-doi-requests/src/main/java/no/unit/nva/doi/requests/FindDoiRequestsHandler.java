@@ -14,11 +14,11 @@ import java.util.List;
 import java.util.Optional;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
-import no.unit.nva.doi.requests.api.model.responses.DoiRequestSummary;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
+import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
@@ -79,7 +79,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
 
         verifyRoles(requestedRole, assignedRoles);
 
-        List<DoiRequestSummary> doiRequests = getDoiRequestsForRole(user, requestedRole, URI.create(customerId));
+        List<Publication> doiRequests = getDoiRequestsForRole(user, requestedRole, URI.create(customerId));
         return DoiRequestsResponse.of(doiRequests);
     }
 
@@ -88,9 +88,9 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         return SC_OK;
     }
 
-    private List<DoiRequestSummary> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
+    private List<Publication> getDoiRequestsForRole(String user, String requestedRole, URI publisher)
         throws ApiGatewayException {
-        List<DoiRequestSummary> doiRequests;
+        List<Publication> doiRequests;
         if (requestedRole.equalsIgnoreCase(CREATOR)) {
             doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(publisher, REQUESTED, user);
         } else if (requestedRole.equalsIgnoreCase(CURATOR)) {
