@@ -212,11 +212,10 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
 
-        Publication actualDoiRequestSummary = readPublicationDirectlyFromDynamo(publication.getIdentifier());
+        var actualUpdatedPublication = readPublicationDirectlyFromDynamo(publication.getIdentifier());
+        var expectedUpdatedPublication = expectedDoiRequestSummary(publication, actualUpdatedPublication);
 
-        Publication expectedDoiRequestSummary = expectedDoiRequestSummary(publication, actualDoiRequestSummary);
-
-        assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
+        assertThat(actualUpdatedPublication, is(equalTo(expectedUpdatedPublication)));
 
         assertThat(response.getHeaders(), hasEntry(HttpHeaders.LOCATION,
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
