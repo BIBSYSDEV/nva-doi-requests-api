@@ -92,11 +92,9 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         throws ApiGatewayException {
         List<Publication> doiRequests;
         if (requestedRole.equalsIgnoreCase(CREATOR)) {
-            doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(
-                publisher, REQUESTED, user);
+            doiRequests = doiRequestsService.findDoiRequestsByStatusAndOwner(publisher, REQUESTED, user);
         } else if (requestedRole.equalsIgnoreCase(CURATOR)) {
-            doiRequests = doiRequestsService.findDoiRequestsByStatus(
-                publisher, REQUESTED);
+            doiRequests = doiRequestsService.findDoiRequestsByStatus(publisher, REQUESTED);
         } else {
             doiRequests = Collections.emptyList();
         }

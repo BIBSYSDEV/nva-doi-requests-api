@@ -105,7 +105,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException {
         return findDoiRequestsByStatus(publisher, status)
-            .stream().parallel()
+            .stream()
+            .parallel()
             .filter(publication -> belongsToUser(owner, publication))
             .collect(Collectors.toList());
     }
@@ -121,8 +122,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         throws ConflictException, NotFoundException, ForbiddenException {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
-        assertThatPublicationHasNoPreviousDoiRequest(publication);
-
+        verifyThatPublicationHasNoPreviousDoiRequest(publication);
         var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
         publication.setDoiRequest(newDoiRequestEntry);
 
@@ -148,28 +148,23 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return rangeKeyCondition;
     }
 
-    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
-        return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
-    }
-
     private ItemCollection<QueryOutcome> queryByPublisherAndStatus(URI publisher,
                                                                    RangeKeyCondition statusLimitedRange) {
         return doiRequestsIndex.query(PUBLISHER_ID, publisher.toString(),
             statusLimitedRange);
     }
 
-    private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
-        List<Publication> publications = new ArrayList<>();
-
-        for (Item item : outcome) {
-            addPublicationToList(publications, item);
-        }
-        return publications;
+    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
+        return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
     }
 
-    private void addPublicationToList(List<Publication> publications, Item item) {
-        Publication publication = itemToPublication(item);
-        publications.add(publication);
+    private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
+        List<Publication> publications = new ArrayList<>();
+        for (Item item : outcome) {
+            Publication publication = itemToPublication(item);
+            publications.add(publication);
+        }
+        return publications;
     }
 
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
@@ -186,10 +181,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-    private void assertThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
-        if (nonNull(publication.getDoiRequest())) {
-            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
-        }
+    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
+        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
     }
 
     private DoiRequest.Builder doiRequestBuilderWithoutMessage() {
@@ -198,8 +191,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .withDate(Instant.now(clockForTimestamps));
     }
 
-    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
-        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
+    private void verifyThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
+        if (nonNull(publication.getDoiRequest())) {
+            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
+        }
     }
 
     private void validateUsername(Publication publication, String username) throws ForbiddenException {
@@ -224,7 +219,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private Publication fetchPublicationById(UUID publicationId) throws NotFoundException {
-        QuerySpec query = buildQuery(publicationId);
+        QuerySpec query = queryForLastestPublicationWithId(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
             .orElseThrow(() -> handlePublicationNotFoundError(publicationId));
@@ -259,7 +254,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.empty();
     }
 
-    private QuerySpec buildQuery(UUID publicationId) {
+    private QuerySpec queryForLastestPublicationWithId(UUID publicationId) {
         QuerySpec query = new QuerySpec()
             .withHashKey(new KeyAttribute(PUBLICATION_ID_HASH_KEY_NAME, publicationId.toString()))
             .withScanIndexForward(false)

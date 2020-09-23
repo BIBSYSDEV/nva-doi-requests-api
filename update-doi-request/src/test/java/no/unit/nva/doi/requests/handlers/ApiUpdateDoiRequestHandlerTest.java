@@ -190,8 +190,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         ApiUpdateDoiRequest updateDoiRequest = generateValidApiUpdateDoiRequest(publication.getIdentifier().toString());
 
-        var requestContext = objectMapper.createObjectNode();
-        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, requestContext);
+        var requestContextMissingUsername = objectMapper.createObjectNode();
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, requestContextMissingUsername);
 
         final Problem details = response.getBodyObject(Problem.class);
 
