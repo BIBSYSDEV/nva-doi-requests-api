@@ -3,6 +3,7 @@ package no.unit.nva.doi.requests.api.model.requests;
 import static nva.commons.utils.attempt.Try.attempt;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import nva.commons.utils.JacocoGenerated;
@@ -33,8 +34,8 @@ public class CreateDoiRequest {
     }
 
     @JacocoGenerated
-    public String getMessage() {
-        return message;
+    public Optional<String> getMessage() {
+        return Optional.ofNullable(message);
     }
 
     @JacocoGenerated

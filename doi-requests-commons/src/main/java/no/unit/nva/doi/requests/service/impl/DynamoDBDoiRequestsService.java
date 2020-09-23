@@ -120,24 +120,19 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws NotFoundException {
         Publication publication = fetchPublication(publicationId);
-        return Optional.ofNullable(DoiRequestSummary.fromPublication(publication));
+        return Optional.of(DoiRequestSummary.fromPublication(publication));
     }
 
     @Override
     public void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException {
-        Publication publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
-        validateUsername(publication, username);
-        if (nonNull(publication.getDoiRequest())) {
-            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
-        }
-        DoiRequest doiRequest = new DoiRequest.Builder()
-            .withStatus(DoiRequestStatus.REQUESTED)
-            .withDate(Instant.now(clockForTimestamps))
-            .addMessage(createMessage(createDoiRequest, username))
-            .build();
 
-        publication.setDoiRequest(doiRequest);
+        Publication publication = fetchPublicationForUser(createDoiRequest, username);
+        verifyThatPublicationHasNoPreviousDoiRequest(publication);
+
+        var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
+        publication.setDoiRequest(newDoiRequestEntry);
+
         putItem(publication);
     }
 
@@ -150,6 +145,13 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
+    private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
+        throws NotFoundException, ForbiddenException {
+        var publication = fetchPublication(UUID.fromString(createDoiRequest.getPublicationId()));
+        validateUsername(publication, username);
+        return publication;
+    }
+
     protected Optional<DoiRequestSummary> toDoiRequestSummary(Item item) {
         DoiRequestSummary doiRequestSummary = null;
         try {
@@ -160,6 +162,29 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.ofNullable(doiRequestSummary);
     }
 
+    private DoiRequest createDoiRequestEntry(CreateDoiRequest createDoiRequest, String username) {
+        return createDoiRequest.getMessage()
+            .map(message -> doiRequestBuilderWithMessage(message, username))
+            .orElse(doiRequestBuilderWithoutMessage())
+            .build();
+    }
+
+    private void verifyThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
+        if (nonNull(publication.getDoiRequest())) {
+            throw new ConflictException(DOI_ALREADY_EXISTS_ERROR + publication.getIdentifier().toString());
+        }
+    }
+
+    private DoiRequest.Builder doiRequestBuilderWithoutMessage() {
+        return new DoiRequest.Builder()
+            .withStatus(DoiRequestStatus.REQUESTED)
+            .withDate(Instant.now(clockForTimestamps));
+    }
+
+    private DoiRequest.Builder doiRequestBuilderWithMessage(String message, String username) {
+        return doiRequestBuilderWithoutMessage().addMessage(createMessage(message, username));
+    }
+
     private void validateUsername(Publication publication, String username) throws ForbiddenException {
         if (!(publication.getOwner().equals(username))) {
             logger.warn(String.format(WRONG_OWNER_ERROR, username, publication.getOwner()));
@@ -167,10 +192,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         }
     }
 
-    private DoiRequestMessage createMessage(CreateDoiRequest createDoiRequest, String author) {
+    private DoiRequestMessage createMessage(String message, String author) {
         return new DoiRequestMessage.Builder()
             .withAuthor(author)
-            .withText(createDoiRequest.getMessage())
+            .withText(message)
             .withTimestamp(Instant.now(clockForTimestamps))
             .build();
     }
