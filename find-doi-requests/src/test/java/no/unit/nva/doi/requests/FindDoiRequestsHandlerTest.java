@@ -19,7 +19,6 @@ import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.testutils.HandlerRequestBuilder;
-import no.unit.nva.testutils.TestContext;
 import no.unit.nva.testutils.TestHeaders;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.GatewayResponseSerializingException;
@@ -61,7 +60,7 @@ public class FindDoiRequestsHandlerTest {
         when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
         handler = new FindDoiRequestsHandler(doiRequestsService, environment);
         outputStream = new ByteArrayOutputStream();
-        context = new TestContext();
+        context = mock(Context.class);
     }
 
     @Test
