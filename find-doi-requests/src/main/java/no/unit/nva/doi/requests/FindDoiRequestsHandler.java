@@ -68,7 +68,6 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
         String assignedRoles;
         String customerId;
         try {
-
             user = UserDetails.getUsername(requestInfo);
             assignedRoles = UserDetails.getAssignedRoles(requestInfo);
             customerId = UserDetails.getCustomerId(requestInfo);
