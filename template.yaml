@@ -46,7 +46,7 @@ Resources:
       StageName: Prod
       EndpointConfiguration: REGIONAL
       DefinitionBody:
-        openapi: 3.0.4
+        openapi: 3.0.3
         info:
           title: NVA DOI Requests API
           description: NVA DOI Requests
@@ -56,7 +56,7 @@ Resources:
             get:
               summary: Find DOI Requests By Role
               security:
-                - CognitoUserPool: []
+                - CognitoUserPool: [ ]
               parameters:
                 - in: query
                   name: role
@@ -71,7 +71,7 @@ Resources:
                       schema:
                         type: array
                         items:
-                          $ref: '#/components/schemas/DoiRequestSummary'
+                          $ref: '#/components/schemas/Publication'
                 '400':
                   description: Bad Request
                   content:
@@ -93,25 +93,50 @@ Resources:
               x-amazon-apigateway-integration:
                 uri:
                   Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
-                responses: {}
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
+            post:
+              summary: Create new Doi request
+              security:
+                - CognitoUserPool: [ ]
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CreateDoiRequest'
+              responses:
+                '201':
+                  description: Created
+                  # no body for post. Client will see all messages when they request the details for the DoiRequest
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '404':
+                  description: Not Found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaCreateDoiRequestHandler.Arn}/invocations
+                responses: { }
                 httpMethod: POST
                 type: AWS_PROXY
         components:
           schemas:
-            DoiRequestSummary:
+            Publication:
+              type: object
+            CreateDoiRequest:
               type: object
               properties:
-                doiRequestStatus:
+                publicationId:
                   type: string
-                doiRequestDate:
-                  type: string
-                  format: date-time
-                publicationIdentifier:
-                  type: string
-                  format: uuid
-                publicationTitle:
-                  type: string
-                publicationCreator:
+                message:
                   type: string
             Problem:
               type: object
@@ -132,7 +157,6 @@ Resources:
                 type: cognito_user_pools
                 providerARNs:
                   - !Ref CognitoAuthorizerArn
-
   NvaFindDoiRequestsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -154,6 +178,28 @@ Resources:
           Properties:
             Path: /
             Method: get
+            RestApiId: !Ref NvaDoiRequestsApi
+  NvaCreateDoiRequestHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: create-doi-request
+      Handler: no.unit.nva.doi.requests.handlers.CreateDoiRequestHandler::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DoiRequestsTableName
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
             RestApiId: !Ref NvaDoiRequestsApi
   NvaDoiRequestsPathMapping:
     Type: AWS::ApiGateway::BasePathMapping
