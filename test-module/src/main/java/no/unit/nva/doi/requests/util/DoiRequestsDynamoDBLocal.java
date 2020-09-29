@@ -1,6 +1,5 @@
 package no.unit.nva.doi.requests.util;
 
-import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_FIELD_NAME;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_INDEX_HASH_KEY;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_INDEX_SORT_KEY;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_HASH_KEY;
@@ -123,15 +122,7 @@ public class DoiRequestsDynamoDBLocal {
     }
 
     private Projection byDoiRequestTableProjection() {
-        return new Projection()
-            .withProjectionType(ProjectionType.INCLUDE)
-            .withNonKeyAttributes(TABLE_HASH_KEY,
-                CREATED_DATE,
-                TABLE_SORT_KEY,
-                ENTITY_DESCRIPTION,
-                DOI_REQUEST_FIELD_NAME,
-                STATUS,
-                OWNER);
+        return new Projection().withProjectionType(ProjectionType.ALL);
     }
 
     private List<KeySchemaElement> indexKey() {

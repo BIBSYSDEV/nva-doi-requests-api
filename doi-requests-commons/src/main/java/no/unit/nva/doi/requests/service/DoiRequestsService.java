@@ -5,9 +5,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import no.unit.nva.doi.requests.model.CreateDoiRequest;
-import no.unit.nva.doi.requests.model.DoiRequestSummary;
+import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
@@ -17,13 +17,17 @@ public interface DoiRequestsService {
 
     String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
-    List<DoiRequestSummary> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status) throws ApiGatewayException;
+    List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status) throws ApiGatewayException;
 
-    List<DoiRequestSummary> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
+    List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException;
 
-    Optional<DoiRequestSummary> fetchDoiRequest(UUID publicationId) throws JsonProcessingException, NotFoundException;
+    Optional<Publication> fetchDoiRequestByPublicationId(UUID publicationId)
+        throws JsonProcessingException, NotFoundException;
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException;
+
+    void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+        throws NotFoundException, ForbiddenException;
 }
