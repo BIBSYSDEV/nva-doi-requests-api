@@ -20,10 +20,12 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
@@ -98,7 +100,22 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return attempt(() -> limitKeyRangeToStatus(status))
             .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
             .map(this::extractPublications)
+            .map(this::keepMostRecentPublications)
             .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private List<Publication> keepMostRecentPublications(List<Publication> publications) {
+        return publications.stream()
+            .parallel()
+            .collect(Collectors.groupingBy(Publication::getIdentifier))
+            .values()
+            .stream()
+            .flatMap(this::mostRecentPublication)
+            .collect(Collectors.toList());
+    }
+
+    private Stream<Publication> mostRecentPublication(List<Publication> publicationList) {
+        return publicationList.stream().max(Comparator.comparing(Publication::getModifiedDate)).stream();
     }
 
     @Override
@@ -150,8 +167,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     private ItemCollection<QueryOutcome> queryByPublisherAndStatus(URI publisher,
                                                                    RangeKeyCondition statusLimitedRange) {
-        return doiRequestsIndex.query(PUBLISHER_ID, publisher.toString(),
-            statusLimitedRange);
+        QuerySpec querySpec = new QuerySpec()
+            .withHashKey(PUBLISHER_ID, publisher.toString())
+            .withRangeKeyCondition(statusLimitedRange);
+        return doiRequestsIndex.query(querySpec);
     }
 
     private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
@@ -219,7 +238,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private Publication fetchPublicationById(UUID publicationId) throws NotFoundException {
-        QuerySpec query = queryForLastestPublicationWithId(publicationId);
+        QuerySpec query = queryForLatestPublicationWithId(publicationId);
         return executeQuery(query)
             .map(this::itemToPublication)
             .orElseThrow(() -> handlePublicationNotFoundError(publicationId));
@@ -254,11 +273,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.empty();
     }
 
-    private QuerySpec queryForLastestPublicationWithId(UUID publicationId) {
-        QuerySpec query = new QuerySpec()
+    private QuerySpec queryForLatestPublicationWithId(UUID publicationId) {
+        return new QuerySpec()
             .withHashKey(new KeyAttribute(PUBLICATION_ID_HASH_KEY_NAME, publicationId.toString()))
             .withScanIndexForward(false)
             .withMaxResultSize(SINGLE_ITEM);
-        return query;
     }
 }
