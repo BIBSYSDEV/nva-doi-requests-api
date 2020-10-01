@@ -115,8 +115,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public Optional<Publication> fetchDoiRequestByPublicationId(UUID publicationId) throws NotFoundException {
-        Publication publication = fetchPublicationByIdentifier(publicationId);
+    public Optional<Publication> fetchDoiRequestByPublicationIdentifier(UUID publicationIdentifier)
+        throws NotFoundException {
+        Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
         return Optional.of(publication);
     }
 
@@ -133,9 +134,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+    public void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
+                                 String requestedByUsername)
         throws NotFoundException, ForbiddenException {
-        Publication publication = fetchPublicationByIdentifier(publicationID);
+        Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);

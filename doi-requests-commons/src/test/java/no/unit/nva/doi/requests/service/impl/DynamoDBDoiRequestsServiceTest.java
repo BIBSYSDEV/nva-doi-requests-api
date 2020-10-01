@@ -167,7 +167,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         throws JsonProcessingException, NotFoundException {
         Publication publication = getPublicationWithDoiRequest();
         insertPublication(publication);
-        Optional<Publication> result = service.fetchDoiRequestByPublicationId(publication.getIdentifier());
+        Optional<Publication> result = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
     }
 
@@ -197,7 +197,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.createDoiRequest(createDoiRequestWithMessage(publication), publication.getOwner());
         Publication actualDoiRequestSummary = service
-            .fetchDoiRequestByPublicationId(publication.getIdentifier())
+            .fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
@@ -303,7 +303,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
 
-        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationId(publication.getIdentifier())
+        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
         DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
 
