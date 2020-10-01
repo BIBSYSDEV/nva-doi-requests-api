@@ -305,7 +305,7 @@ Resources:
         GetEvent:
           Type: Api
           Properties:
-            Path: /{identifier}/
+            Path: /{publicationIdentifier}/
             Method: post
             RestApiId: !Ref NvaDoiRequestsApi
   NvaDoiRequestsPathMapping:
