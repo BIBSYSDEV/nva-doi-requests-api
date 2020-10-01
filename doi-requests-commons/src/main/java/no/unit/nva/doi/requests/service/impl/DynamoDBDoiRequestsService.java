@@ -104,20 +104,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .orElseThrow(this::handleErrorFetchingPublications);
     }
 
-    private List<Publication> keepMostRecentPublications(List<Publication> publications) {
-        return publications.stream()
-            .parallel()
-            .collect(Collectors.groupingBy(Publication::getIdentifier))
-            .values()
-            .stream()
-            .flatMap(this::mostRecentPublication)
-            .collect(Collectors.toList());
-    }
-
-    private Stream<Publication> mostRecentPublication(List<Publication> publicationList) {
-        return publicationList.stream().max(Comparator.comparing(Publication::getModifiedDate)).stream();
-    }
-
     @Override
     public List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException {
@@ -130,7 +116,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     @Override
     public Optional<Publication> fetchDoiRequestByPublicationId(UUID publicationId) throws NotFoundException {
-        Publication publication = fetchPublicationById(publicationId);
+        Publication publication = fetchPublicationByIdentifier(publicationId);
         return Optional.of(publication);
     }
 
@@ -149,10 +135,27 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
         throws NotFoundException, ForbiddenException {
-        Publication publication = fetchPublicationById(publicationID);
+        Publication publication = fetchPublicationByIdentifier(publicationID);
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
+    }
+
+    private List<Publication> keepMostRecentPublications(List<Publication> publications) {
+        return publications.stream()
+            .parallel()
+            .collect(Collectors.groupingBy(Publication::getIdentifier))
+            .values()
+            .stream()
+            .flatMap(this::mostRecentPublication)
+            .collect(Collectors.toList());
+    }
+
+    private Stream<Publication> mostRecentPublication(List<Publication> publicationList) {
+        return publicationList
+            .stream()
+            .max(Comparator.comparing(Publication::getModifiedDate))
+            .stream();
     }
 
     private boolean belongsToUser(String owner, Publication publication) {
@@ -188,7 +191,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     private Publication fetchPublicationForUser(CreateDoiRequest createDoiRequest, String username)
         throws NotFoundException, ForbiddenException {
-        var publication = fetchPublicationById(UUID.fromString(createDoiRequest.getPublicationId()));
+        var publication = fetchPublicationByIdentifier(UUID.fromString(createDoiRequest.getPublicationId()));
         validateUsername(publication, username);
         return publication;
     }
@@ -237,16 +240,16 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         publicationsTable.putItem(putItemSpec);
     }
 
-    private Publication fetchPublicationById(UUID publicationId) throws NotFoundException {
-        QuerySpec query = queryForLatestPublicationWithId(publicationId);
-        return executeQuery(query)
+    private Publication fetchPublicationByIdentifier(UUID publicationIdentifier) throws NotFoundException {
+        return Optional.of(queryLatestPublication(publicationIdentifier))
+            .flatMap(this::executeQuery)
             .map(this::itemToPublication)
-            .orElseThrow(() -> handlePublicationNotFoundError(publicationId));
+            .orElseThrow(() -> handlePublicationNotFoundError(publicationIdentifier));
     }
 
-    private NotFoundException handlePublicationNotFoundError(UUID publicationId) {
-        logger.error(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationId.toString());
-        return new NotFoundException(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationId.toString());
+    private NotFoundException handlePublicationNotFoundError(UUID publicationIdentifier) {
+        logger.error(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationIdentifier.toString());
+        return new NotFoundException(PUBLICATION_NOT_FOUND_ERROR_MESSAGE + publicationIdentifier.toString());
     }
 
     private Publication itemToPublication(Item item) {
@@ -265,7 +268,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private Optional<Item> extractSingleItemFromResult(ItemCollection<QueryOutcome> result) {
-
         IteratorSupport<Item, QueryOutcome> iterator = result.iterator();
         if (iterator.hasNext()) {
             return Optional.of(iterator.next());
@@ -273,9 +275,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.empty();
     }
 
-    private QuerySpec queryForLatestPublicationWithId(UUID publicationId) {
+    private QuerySpec queryLatestPublication(UUID publicationIdentifier) {
         return new QuerySpec()
-            .withHashKey(new KeyAttribute(PUBLICATION_ID_HASH_KEY_NAME, publicationId.toString()))
+            .withHashKey(new KeyAttribute(PUBLICATION_ID_HASH_KEY_NAME, publicationIdentifier.toString()))
             .withScanIndexForward(false)
             .withMaxResultSize(SINGLE_ITEM);
     }
