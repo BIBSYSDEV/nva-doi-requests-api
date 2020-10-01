@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -25,11 +26,13 @@ import static org.mockito.Mockito.when;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Period;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
@@ -107,6 +110,30 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void findDoiRequestsByStatusAndOwnerReturnsLatestPublicationForEachPublicationIdentifier() throws Exception {
+        Publication publication = getPublicationWithDoiRequest();
+        Publication laterPublication = updatedPublication(publication);
+        Publication latestPublication = updatedPublication(laterPublication);
+
+        insertPublication(publication);
+        insertPublication(laterPublication);
+        insertPublication(latestPublication);
+
+        List<Publication> publications = service.findDoiRequestsByStatusAndOwner(
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
+        assertEquals(1, publications.size());
+
+        Publication actualPublication = publications.get(0);
+        assertThat(actualPublication, is(equalTo(latestPublication)));
+    }
+
+    private Publication updatedPublication(Publication publication) {
+        return publication.copy()
+            .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
+            .build();
+    }
+
+    @Test
     public void findDoiRequestsByStatusAndOwnerReturnsAllButOneResultsWhenUserOwnsAllButOneDoiRequests()
         throws Exception {
         insertPublication(getPublicationWithDoiRequest());
@@ -140,7 +167,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         throws JsonProcessingException, NotFoundException {
         Publication publication = getPublicationWithDoiRequest();
         insertPublication(publication);
-        Optional<Publication> result = service.fetchDoiRequestByPublicationId(publication.getIdentifier());
+        Optional<Publication> result = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
     }
 
@@ -170,7 +197,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.createDoiRequest(createDoiRequestWithMessage(publication), publication.getOwner());
         Publication actualDoiRequestSummary = service
-            .fetchDoiRequestByPublicationId(publication.getIdentifier())
+            .fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
@@ -276,7 +303,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
 
-        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationId(publication.getIdentifier())
+        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
         DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
 
@@ -293,7 +320,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Index indexThrowingException(String expectedMessage) {
         Index index = mock(Index.class);
-        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
+        when(index.query(any(QuerySpec.class))).then(
             invocation -> {
                 throw new RuntimeException(expectedMessage);
             });

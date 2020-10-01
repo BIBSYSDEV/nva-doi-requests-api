@@ -193,7 +193,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private Publication readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
         throws JsonProcessingException, NotFoundException {
-        return doiRequestsService.fetchDoiRequestByPublicationId(
+        return doiRequestsService.fetchDoiRequestByPublicationIdentifier(
             UUID.fromString(doiRequest.getPublicationId()))
             .orElseThrow();
     }

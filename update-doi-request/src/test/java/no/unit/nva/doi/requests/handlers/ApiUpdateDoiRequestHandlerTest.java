@@ -249,8 +249,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return publication.getOwner();
     }
 
-    private Publication readPublicationDirectlyFromDynamo(UUID id) throws NotFoundException {
-        return doiRequestsService.fetchDoiRequestByPublicationId(id).orElseThrow();
+    private Publication readPublicationDirectlyFromDynamo(UUID identifier) throws NotFoundException {
+        return doiRequestsService.fetchDoiRequestByPublicationIdentifier(identifier).orElseThrow();
     }
 
     private Publication expectedDoiRequestSummary(Publication originalPublication,
