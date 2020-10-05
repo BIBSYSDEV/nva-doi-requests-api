@@ -147,7 +147,7 @@ Resources:
                       $ref: '#/components/schemas/UpdateDoiRequest'
               responses:
                 '202':
-                  description: OK
+                  description: Accepted
                 '400':
                   description: Bad Request
                   content:
