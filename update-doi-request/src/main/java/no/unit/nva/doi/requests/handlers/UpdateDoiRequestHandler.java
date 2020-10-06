@@ -44,15 +44,15 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
         throws ApiGatewayException {
         input.validate();
         var username = getUserName(requestInfo);
-        UUID publicationId;
+        UUID publicationIdentifier;
         var requestedStatusChange = input.getDoiRequestStatus()
                 .orElseThrow(() -> new BadRequestException("You must request changes to do"));
 
         try {
-            publicationId = getPublicationIdentifier(requestInfo);
-            doiRequestService.updateDoiRequest(publicationId, requestedStatusChange, username);
+            publicationIdentifier = getPublicationIdentifier(requestInfo);
+            doiRequestService.updateDoiRequest(publicationIdentifier, requestedStatusChange, username);
             setAdditionalHeadersSupplier(() ->
-                    Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationId)));
+                    Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationIdentifier)));
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
