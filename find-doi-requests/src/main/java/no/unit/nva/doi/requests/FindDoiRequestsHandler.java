@@ -2,10 +2,8 @@ package no.unit.nva.doi.requests;
 
 import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
-import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.apache.http.HttpStatus.SC_OK;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import java.net.URI;
 import java.util.Arrays;
@@ -41,11 +39,12 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
      */
     @JacocoGenerated
     public FindDoiRequestsHandler() {
-        this(new DynamoDBDoiRequestsService(
-                AmazonDynamoDBClientBuilder.defaultClient(),
-                objectMapper,
-                new Environment()),
-            new Environment());
+        this(new Environment());
+    }
+
+    @JacocoGenerated
+    private FindDoiRequestsHandler(Environment environment) {
+        this(DynamoDBDoiRequestsService.defaultDoiRequestService(environment), environment);
     }
 
     /**

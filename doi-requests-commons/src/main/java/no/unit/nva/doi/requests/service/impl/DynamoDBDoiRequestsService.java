@@ -4,6 +4,7 @@ import static java.util.Objects.nonNull;
 import static nva.commons.utils.attempt.Try.attempt;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -39,6 +40,8 @@ import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
+import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.JsonUtils;
 import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,32 +60,27 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Table publicationsTable;
     private final Index doiRequestsIndex;
-    private final ObjectMapper objectMapper;
     private final Clock clockForTimestamps;
+    private final ObjectMapper objectMapper;
 
     /**
      * Constructor for DynamoDBDoiRequestsService.
      *
-     * @param objectMapper objectMapper
-     * @param table        DynamoDB table
-     * @param index        DynamoDB index
+     * @param table DynamoDB table
+     * @param index DynamoDB index
      */
-    public DynamoDBDoiRequestsService(ObjectMapper objectMapper, Table table, Index index) {
-        this.objectMapper = objectMapper;
+    public DynamoDBDoiRequestsService(Table table, Index index) {
+        this.objectMapper = JsonUtils.objectMapper;
         this.publicationsTable = table;
         this.doiRequestsIndex = index;
         this.clockForTimestamps = Clock.systemDefaultZone();
     }
 
-    public DynamoDBDoiRequestsService(AmazonDynamoDB client,
-                                      ObjectMapper objectMapper,
-                                      Environment environment) {
-        this(client, objectMapper, environment, Clock.systemDefaultZone());
+    public DynamoDBDoiRequestsService(AmazonDynamoDB client, Environment environment) {
+        this(client, environment, Clock.systemDefaultZone());
     }
 
-    public DynamoDBDoiRequestsService(AmazonDynamoDB client,
-                                      ObjectMapper objectMapper,
-                                      Environment environment,
+    public DynamoDBDoiRequestsService(AmazonDynamoDB client, Environment environment,
                                       Clock clockForTimestamps) {
 
         DynamoDB dynamoDB = new DynamoDB(client);
@@ -90,8 +88,13 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .getTable(environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
         this.doiRequestsIndex = publicationsTable
             .getIndex(environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
-        this.objectMapper = objectMapper;
         this.clockForTimestamps = clockForTimestamps;
+        this.objectMapper = JsonUtils.objectMapper;
+    }
+
+    @JacocoGenerated
+    public static DynamoDBDoiRequestsService defaultDoiRequestService(Environment environment) {
+        return new DynamoDBDoiRequestsService(AmazonDynamoDBClientBuilder.defaultClient(), environment);
     }
 
     @Override

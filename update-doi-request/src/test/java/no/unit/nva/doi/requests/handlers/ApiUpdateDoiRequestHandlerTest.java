@@ -77,7 +77,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void init() {
         initializeDatabase();
         Clock mockClock = getFixedClockWithDefaultTimeZone(mockNow);
-        doiRequestsService = new DynamoDBDoiRequestsService(client, objectMapper, environment, mockClock);
+        doiRequestsService = new DynamoDBDoiRequestsService(client, environment, mockClock);
         handler = new UpdateDoiRequestHandler(environment, doiRequestsService);
     }
 
