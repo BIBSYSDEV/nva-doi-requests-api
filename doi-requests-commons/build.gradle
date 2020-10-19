@@ -17,6 +17,8 @@ dependencies {
     api group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.0'
     api group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: project.awsSdkVersion
     api group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: project.awsSdkVersion
+    api group: 'com.amazonaws', name: 'aws-java-sdk-sts', version:project.awsSdkVersion
+
 
     implementation(project(':doi-request-common-constants'))
     testImplementation('com.amazonaws:DynamoDBLocal:1.12.0') {

@@ -266,7 +266,7 @@ Resources:
               - sts:TagSession
       Path: /
       Policies:
-        - PolicyName: TableAcess
+        - PolicyName: CuratorAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -282,32 +282,9 @@ Resources:
                   - sts:AssumeRole
                   - sts:TagSession
                 Resource:
-                  - !GetAtt UserRoleMappings.Arn
-                  - !Join [ "",[ !GetAtt UserRoleMappings.Arn, '/index/SearchUsersByInstitution' ] ]
-                Condition:
-                  ForAllValues:StringEquals:
-                    dynamodb:LeadingKeys:
-                      - "USER:${aws:PrincipalTag/username}"
-        - PolicyName: IndexAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:Scan
-                  - dynamodb:Query
-                  - dynamodb:BatchGetItem
-                  - dynamodb:DescribeTable
-                  - sts:AssumeRole
-                  - sts:TagSession
-                Resource:
-                  - !Join [ "",[ !GetAtt UserRoleMappings.Arn, '/index/SearchUsersByInstitution' ] ]
-                Condition:
-                  ForAllValues:StringLike:
-                    dynamodb:LeadingKeys:
-                      #                      - "${aws:PrincipalTag/institution}"
-                      - "*f54c8aa9-073a-46a1-8f7c-dde66c853934*"
+                  - !Join ["",["arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName]]
+                  - !Join ["",["arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName,"/index/",!Ref DoiRequestsIndexName]]
+
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
