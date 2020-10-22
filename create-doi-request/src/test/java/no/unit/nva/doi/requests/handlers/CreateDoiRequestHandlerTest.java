@@ -67,7 +67,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void init() {
         initializeDatabase();
         Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
-        doiRequestsService = new DynamoDBDoiRequestsService(client, objectMapper, environment, mockClock);
+        doiRequestsService = new DynamoDBDoiRequestsService(client, environment, mockClock);
         this.handler = new CreateDoiRequestHandler(environment, doiRequestsService);
     }
 

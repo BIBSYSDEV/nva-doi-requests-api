@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -30,6 +29,7 @@ import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
@@ -79,13 +79,13 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         initializeDatabase();
         environment = mockEnvironment();
         clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
-        service = new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, environment, clock);
+        service = new DynamoDBDoiRequestsService(client, environment, clock);
     }
 
     @Test
     public void constructorCreatesInstanceOnValidInput() {
         DynamoDBDoiRequestsService dynamoDBDoiRequestsService =
-            new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, mockEnvironment());
+            new DynamoDBDoiRequestsService(client, mockEnvironment());
         assertNotNull(dynamoDBDoiRequestsService);
     }
 
@@ -154,8 +154,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Index index = mock(Index.class);
         when(index.query(anyString(), any(), any(RangeKeyCondition.class))).thenThrow(RuntimeException.class);
 
-        DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(
-            JsonUtils.objectMapper, getTable(), index);
+        DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(getTable(), index);
         DynamoDBException exception = assertThrows(DynamoDBException.class,
             () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID, REQUESTED));
 
@@ -179,7 +178,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         var table = mock(Table.class);
         var index = indexThrowingException(expectedMessage);
 
-        service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
+        service = new DynamoDBDoiRequestsService(table, index);
         Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
             publication.getPublisher().getId(), REQUESTED);
         DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
@@ -272,15 +271,16 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void createDoiRequestThrowsRuntimeExceptionOnSerializationError() throws JsonProcessingException {
+    public void createDoiRequestThrowsRuntimeExceptionOnSerializationError()
+        throws JsonProcessingException, NoSuchFieldException, IllegalAccessException {
 
         final String exceptionMessage = "This is the exception message";
         ObjectMapper objectMapper = spy(JsonUtils.objectMapper);
         when(objectMapper.writeValueAsString(any(Publication.class)))
             .thenThrow(new RuntimeException(exceptionMessage));
 
-        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            new DynamoDBDoiRequestsService(client, objectMapper, environment);
+        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper = createServiceWithFailingJsonObjectMapper(
+            objectMapper);
 
         Publication publication = getPublicationWithoutDoiRequest();
         insertPublication(publication);
@@ -291,6 +291,16 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         RuntimeException exception = assertThrows(RuntimeException.class, action);
 
         assertThat(exception.getMessage(), containsString(exceptionMessage));
+    }
+
+    private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
+        throws NoSuchFieldException, IllegalAccessException {
+        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
+            new DynamoDBDoiRequestsService(client, environment);
+        Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
+        field.setAccessible(true);
+        field.set(serviceWithFailingJsonObjectMapper, objectMapper);
+        return serviceWithFailingJsonObjectMapper;
     }
 
     @Test

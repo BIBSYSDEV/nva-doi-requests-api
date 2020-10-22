@@ -286,6 +286,7 @@ Resources:
             Path: /
             Method: post
             RestApiId: !Ref NvaDoiRequestsApi
+
   NvaUpdateDoiRequestHandler:
     Type: AWS::Serverless::Function
     Properties:
