@@ -1,6 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
+import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 
 public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiRequest, Void> {
 
+    public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
-    public static final AWSCredentialsProvider EMPTY_CREDENTIALS = null;
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
     private final String apiScheme;
@@ -113,8 +113,10 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
         return String.format(LOCATION_TEMPLATE_PUBLICATION, apiScheme, apiHost, publicationID.toString());
     }
 
-    private UUID getPublicationIdentifier(RequestInfo requestInfo) {
-        return UUID.fromString(requestInfo.getPathParameter(API_PUBLICATION_PATH_IDENTIFIER));
+    private UUID getPublicationIdentifier(RequestInfo requestInfo) throws BadRequestException {
+        String publicationIdentifierString = requestInfo.getPathParameter(API_PUBLICATION_PATH_IDENTIFIER);
+        return attempt(() -> UUID.fromString(publicationIdentifierString))
+            .orElseThrow(fail -> new BadRequestException(INVALID_PUBLICATION_ID_ERROR + publicationIdentifierString));
     }
 
     private String getUserName(RequestInfo requestInfo) throws ForbiddenException {
