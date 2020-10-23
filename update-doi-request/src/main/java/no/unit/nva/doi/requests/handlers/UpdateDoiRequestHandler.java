@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static nva.commons.utils.attempt.Try.attempt;
+
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
@@ -12,9 +13,11 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
+
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
+
 import no.unit.nva.doi.requests.userdetails.UserDetails;
 import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
@@ -34,9 +37,13 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
+
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
+
     private final String apiScheme;
     private final String apiHost;
+
+
 
     @JacocoGenerated
     public UpdateDoiRequestHandler() {
@@ -45,12 +52,14 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     public UpdateDoiRequestHandler(Environment environment,
                                    AWSSecurityTokenService stsClient,
-                                   DynamoDbDoiRequestsServiceFactory doiRequestsService) {
+                                   DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
         super(ApiUpdateDoiRequest.class, environment, stsClient, initializeLogger());
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
-        this.doiRequestsServiceFactory = doiRequestsService;
+        this.doiRequestsServiceFactory = doiRequestsServiceFactory;
     }
+
+
 
     @Override
     protected Void processInput(ApiUpdateDoiRequest input,
@@ -73,6 +82,8 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
         }
         return null;
     }
+
+
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
@@ -102,6 +113,7 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
                                         String username,
                                         UUID publicationIdentifier,
                                         DoiRequestsService doiRequestsService)
+
         throws ForbiddenException, NotFoundException {
 
         doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);

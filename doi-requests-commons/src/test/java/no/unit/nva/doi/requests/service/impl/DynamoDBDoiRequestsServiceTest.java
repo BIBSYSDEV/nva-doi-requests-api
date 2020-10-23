@@ -20,7 +20,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
@@ -81,9 +80,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         environment = mockEnvironment();
         clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
         service = DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment, clock)
-                .getService(EMPTY_CREDENTIALS);
+            .getService(EMPTY_CREDENTIALS);
     }
-
 
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
@@ -284,7 +282,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
+    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
         throws NotFoundException, ForbiddenException, IOException {
 
         Publication publication = getPublicationWithDoiRequest(clock);
@@ -294,7 +292,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
-                .orElseThrow();
+            .orElseThrow();
         DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
 
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
@@ -304,15 +302,16 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Publication updatedPublication(Publication publication) {
         return publication.copy()
-                .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
-                .build();
+            .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
+            .build();
     }
 
     private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
-            throws NoSuchFieldException, IllegalAccessException {
+        throws NoSuchFieldException, IllegalAccessException {
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-                DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment)
-                        .getService(DynamoDBDoiRequestsServiceTest.EMPTY_CREDENTIALS);
+            DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment)
+                .getService(DynamoDBDoiRequestsServiceTest.EMPTY_CREDENTIALS);
+
         Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
         field.setAccessible(true);
         field.set(serviceWithFailingJsonObjectMapper, objectMapper);

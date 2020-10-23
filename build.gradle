@@ -25,11 +25,6 @@ subprojects {
     // source-code version and must be <= targetCompatibility
     targetCompatibility = JavaVersion.VERSION_11 // bytecode target version
 
-
-    jacoco {
-        toolVersion = "0.8.6"
-    }
-
     project.ext{
         jacksonVersion = '2.10.2'
         awsSdkVersion = '1.11.714'

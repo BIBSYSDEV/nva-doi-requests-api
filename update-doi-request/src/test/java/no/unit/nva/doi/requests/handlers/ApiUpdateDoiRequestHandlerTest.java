@@ -85,6 +85,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .fromClientWithoutCredentials(client, environment, mockClock);
         doiRequestsService = doiRequestsServiceFactory.getService(EMPTY_CREDENTIALS);
         handler = new UpdateDoiRequestHandler(environment, stsClient, doiRequestsServiceFactory);
+
     }
 
     @Test
