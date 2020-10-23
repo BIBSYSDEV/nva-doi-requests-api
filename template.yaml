@@ -397,6 +397,7 @@ Resources:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
           INDEX_NAME: !Ref DoiRequestsIndexName
+          ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetEvent:

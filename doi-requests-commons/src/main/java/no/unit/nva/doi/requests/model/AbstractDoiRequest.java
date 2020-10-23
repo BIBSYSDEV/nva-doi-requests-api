@@ -13,9 +13,7 @@ public abstract class AbstractDoiRequest {
     private String publicationId;
 
     protected AbstractDoiRequest() {
-
     }
-
 
     public void validate() throws BadRequestException {
         attempt(() -> UUID.fromString(publicationId))
