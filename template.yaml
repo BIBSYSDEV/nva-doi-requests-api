@@ -299,6 +299,8 @@ Resources:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
           INDEX_NAME: !Ref DoiRequestsIndexName
+          API_HOST: api.dev.nva.aws.unit.no
+          API_SCHEME: https
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DoiRequestsTableName
