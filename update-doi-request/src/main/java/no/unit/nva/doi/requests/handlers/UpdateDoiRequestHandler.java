@@ -10,7 +10,6 @@ import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
-import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -56,18 +55,21 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
                                 Context context)
         throws ApiGatewayException {
 
-        input.validate();
-
         try {
-            String username = getUserName(requestInfo);
-            var doiRequestStatus = input.getDoiRequestStatus();
+            input.validate();
             UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
-            doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
+            updateDoiRequestStatus(input, requestInfo, publicationIdentifier);
             updateContentLocationHeader(publicationIdentifier);
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
         return null;
+    }
+
+    private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo, UUID publicationIdentifier)
+        throws ForbiddenException, NotFoundException {
+        String username = getUserName(requestInfo);
+        doiRequestsService.updateDoiRequest(publicationIdentifier, input.getDoiRequestStatus(), username);
     }
 
     @Override
