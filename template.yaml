@@ -302,7 +302,7 @@ Resources:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
           INDEX_NAME: !Ref DoiRequestsIndexName
-          API_HOST: !Ref apiHost
+          API_HOST: !Ref ApiHost
           API_SCHEME: https
       Policies:
         - DynamoDBCrudPolicy:
