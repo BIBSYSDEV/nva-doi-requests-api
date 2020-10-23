@@ -79,7 +79,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         initializeDatabase();
         environment = mockEnvironment();
         clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
-        service = DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment, clock)
+        service = DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment,
+            clock)
             .getService(EMPTY_CREDENTIALS);
     }
 
@@ -309,7 +310,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
         throws NoSuchFieldException, IllegalAccessException {
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment)
+            DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment)
                 .getService(DynamoDBDoiRequestsServiceTest.EMPTY_CREDENTIALS);
 
         Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");

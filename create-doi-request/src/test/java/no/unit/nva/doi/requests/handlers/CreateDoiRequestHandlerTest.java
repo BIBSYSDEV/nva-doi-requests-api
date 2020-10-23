@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
@@ -24,7 +25,6 @@ import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
-import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.MockEnvironment;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
@@ -160,8 +160,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     }
 
     private DoiRequestsService doiRequestServiceWithLocalDbClient(Clock mockClock) {
-        return DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment, mockClock)
-                .getService(EMPTY_CREDENTIALS);
+        return serviceWithCustomClientWithoutCredentials(client, environment, mockClock).getService(EMPTY_CREDENTIALS);
     }
 
     private String validUsername(Publication publication) {

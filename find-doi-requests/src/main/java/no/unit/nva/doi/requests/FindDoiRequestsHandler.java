@@ -44,7 +44,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
 
     @JacocoGenerated
     private FindDoiRequestsHandler(Environment environment) {
-        this(DynamoDbDoiRequestsServiceFactory.defaultServiceWithoutCredentials(environment), environment);
+        this(DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials(environment), environment);
     }
 
     /**

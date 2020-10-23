@@ -52,8 +52,6 @@ import org.zalando.problem.Problem;
 public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     public static final String INVALID_PUBLICATION_IDENTIFIER = "InvalidPublicationId";
-    public static final String VALID_PUBLICATION_IDENTIFIER = UUID.randomUUID().toString();
-    public static final String NULL_STRING_REPRESENTATION = "null";
     public static final String FAKE_ENV_SCHEMA_AND_HOST = FAKE_API_SCHEME_ENV
         + "://"
         + FAKE_API_HOST_ENV
@@ -82,7 +80,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Clock mockClock = getFixedClockWithDefaultTimeZone(mockNow);
 
         DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory = DynamoDbDoiRequestsServiceFactory
-            .fromClientWithoutCredentials(client, environment, mockClock);
+            .serviceWithCustomClientWithoutCredentials(client, environment, mockClock);
         doiRequestsService = doiRequestsServiceFactory.getService(EMPTY_CREDENTIALS);
         handler = new UpdateDoiRequestHandler(environment, stsClient, doiRequestsServiceFactory);
 

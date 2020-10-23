@@ -1,6 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
-import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.defaultServiceWithoutCredentials;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
@@ -26,7 +26,7 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
 
     @JacocoGenerated
     private CreateDoiRequestHandler(Environment environment) {
-        this(environment, defaultServiceWithoutCredentials(environment));
+        this(environment, serviceWithDefaultClientWithoutCredentials(environment));
     }
 
     public CreateDoiRequestHandler(Environment environment, DoiRequestsService doiRequestsService) {
