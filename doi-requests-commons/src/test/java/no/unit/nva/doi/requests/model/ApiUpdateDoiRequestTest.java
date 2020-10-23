@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
 import no.unit.nva.doi.requests.exception.BadRequestException;
+import no.unit.nva.model.DoiRequestStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -28,7 +29,19 @@ class ApiUpdateDoiRequestTest {
         var validUuid = UUID.randomUUID();
         var updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setPublicationId(validUuid.toString());
+        updateDoiRequest.setDoiRequestStatus(DoiRequestStatus.REQUESTED);
         Executable action = updateDoiRequest::validate;
         assertDoesNotThrow(action);
+    }
+
+    @Test
+    void validateThrowsExceptionWhenDoiRequestStatusIsMissing() {
+        var validUuid = UUID.randomUUID();
+        var updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setPublicationId(validUuid.toString());
+
+        Executable action = updateDoiRequest::validate;
+        BadRequestException exception = assertThrows(BadRequestException.class, action);
+        assertThat(exception.getMessage(), containsString(ApiUpdateDoiRequest.NO_CHANGE_REQUESTED_ERROR));
     }
 }
