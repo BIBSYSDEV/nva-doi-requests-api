@@ -32,6 +32,7 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     private final String apiHost;
     private final DynamoDBDoiRequestsService doiRequestsService;
 
+    @JacocoGenerated
     public UpdateDoiRequestHandler() {
         this(new Environment());
     }
