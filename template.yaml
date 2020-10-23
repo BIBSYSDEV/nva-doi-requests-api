@@ -398,6 +398,8 @@ Resources:
           TABLE_NAME: !Ref DoiRequestsTableName
           INDEX_NAME: !Ref DoiRequestsIndexName
           ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
+          API_HOST: api.dev.nva.aws.unit.no
+          API_SCHEME: https
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetEvent:
