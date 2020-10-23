@@ -15,6 +15,7 @@ import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
@@ -134,6 +135,12 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
+        try {
+            String json = JsonUtils.objectMapper.writeValueAsString(publication);
+            logger.info(json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
         putItem(publication);
     }
 

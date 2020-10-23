@@ -41,7 +41,6 @@ public class ApiUpdateDoiRequest extends AbstractDoiRequest {
 
     @Override
     public void validate() throws BadRequestException {
-        super.validate();
         if (doiRequestStatus == null) {
             throw noChangeRequested();
         }

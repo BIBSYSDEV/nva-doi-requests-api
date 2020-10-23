@@ -16,6 +16,7 @@ import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
+import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -62,29 +63,15 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
         try {
             DynamoDBDoiRequestsService doiRequestService = doiRequestsServiceFactory.getService(credentials);
-            UUID publicationIdentifier = updateDoiRequestStatus(input, requestInfo, doiRequestService);
+            String username = getUserName(requestInfo);
+            var doiRequestStatus = input.getDoiRequestStatus();
+            UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
+            updateDoiRequestStatus(doiRequestStatus, username, publicationIdentifier, doiRequestService);
             updateContentLocationHeader(publicationIdentifier);
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
         return null;
-    }
-
-    private void updateContentLocationHeader(UUID publicationIdentifier) {
-        setAdditionalHeadersSupplier(() ->
-            Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationIdentifier)));
-    }
-
-    private UUID updateDoiRequestStatus(ApiUpdateDoiRequest input,
-                                        RequestInfo requestInfo,
-                                        DoiRequestsService doiRequestsService)
-        throws ForbiddenException, NotFoundException {
-
-        var username = getUserName(requestInfo);
-        UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
-        doiRequestsService.updateDoiRequest(publicationIdentifier, input.getDoiRequestStatus(), username);
-
-        return publicationIdentifier;
     }
 
     @Override
@@ -104,6 +91,22 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     private static Logger initializeLogger() {
         return LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
+    }
+
+    private void updateContentLocationHeader(UUID publicationIdentifier) {
+        setAdditionalHeadersSupplier(() ->
+            Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationIdentifier)));
+    }
+
+    private UUID updateDoiRequestStatus(DoiRequestStatus doiRequestStatus,
+                                        String username,
+                                        UUID publicationIdentifier,
+                                        DoiRequestsService doiRequestsService)
+        throws ForbiddenException, NotFoundException {
+
+        doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
+
+        return publicationIdentifier;
     }
 
     private String getContentLocation(UUID publicationID) {
