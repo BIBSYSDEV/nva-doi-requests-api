@@ -59,11 +59,10 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
         input.validate();
 
         try {
-
             String username = getUserName(requestInfo);
             var doiRequestStatus = input.getDoiRequestStatus();
             UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
-            updateDoiRequestStatus(doiRequestStatus, username, publicationIdentifier);
+            doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
             updateContentLocationHeader(publicationIdentifier);
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
@@ -88,16 +87,6 @@ public class UpdateDoiRequestHandler extends ApiGatewayHandler<ApiUpdateDoiReque
     private void updateContentLocationHeader(UUID publicationIdentifier) {
         setAdditionalHeadersSupplier(() ->
             Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationIdentifier)));
-    }
-
-    private UUID updateDoiRequestStatus(DoiRequestStatus doiRequestStatus,
-                                        String username,
-                                        UUID publicationIdentifier)
-        throws ForbiddenException, NotFoundException {
-
-        doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
-
-        return publicationIdentifier;
     }
 
     private String getContentLocation(UUID publicationID) {
