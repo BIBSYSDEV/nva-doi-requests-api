@@ -1,7 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static nva.commons.utils.attempt.Try.attempt;
-
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
@@ -13,13 +12,9 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
-
-import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
-
 import no.unit.nva.doi.requests.userdetails.UserDetails;
-import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -43,8 +38,6 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
     private final String apiScheme;
     private final String apiHost;
 
-
-
     @JacocoGenerated
     public UpdateDoiRequestHandler() {
         this(new Environment(), stsClient(), new DynamoDbDoiRequestsServiceFactory());
@@ -59,31 +52,22 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
         this.doiRequestsServiceFactory = doiRequestsServiceFactory;
     }
 
-
-
     @Override
     protected Void processInput(ApiUpdateDoiRequest input,
                                 RequestInfo requestInfo,
                                 STSAssumeRoleSessionCredentialsProvider credentials,
                                 Context context)
         throws ApiGatewayException {
-
-        input.validate();
-
         try {
-            DynamoDBDoiRequestsService doiRequestService = doiRequestsServiceFactory.getService(credentials);
-            String username = getUserName(requestInfo);
-            var doiRequestStatus = input.getDoiRequestStatus();
+            input.validate();
             UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
-            updateDoiRequestStatus(doiRequestStatus, username, publicationIdentifier, doiRequestService);
+            updateDoiRequestStatus(input, requestInfo, credentials, publicationIdentifier);
             updateContentLocationHeader(publicationIdentifier);
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new BadRequestException(e.getMessage());
         }
         return null;
     }
-
-
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
@@ -104,21 +88,18 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
         return LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     }
 
+    private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
+                                        STSAssumeRoleSessionCredentialsProvider credentials, UUID publicationIdentifier)
+        throws ForbiddenException, NotFoundException {
+        var doiRequestStatus = input.getDoiRequestStatus();
+        String username = getUserName(requestInfo);
+        DynamoDBDoiRequestsService doiRequestService = doiRequestsServiceFactory.getService(credentials);
+        doiRequestService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
+    }
+
     private void updateContentLocationHeader(UUID publicationIdentifier) {
         setAdditionalHeadersSupplier(() ->
             Collections.singletonMap(HttpHeaders.LOCATION, getContentLocation(publicationIdentifier)));
-    }
-
-    private UUID updateDoiRequestStatus(DoiRequestStatus doiRequestStatus,
-                                        String username,
-                                        UUID publicationIdentifier,
-                                        DoiRequestsService doiRequestsService)
-
-        throws ForbiddenException, NotFoundException {
-
-        doiRequestsService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
-
-        return publicationIdentifier;
     }
 
     private String getContentLocation(UUID publicationID) {
