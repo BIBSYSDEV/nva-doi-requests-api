@@ -25,6 +25,7 @@ import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.MockEnvironment;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
@@ -67,7 +68,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void init() {
         initializeDatabase();
         Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
-        doiRequestsService = new DynamoDBDoiRequestsService(client, environment, mockClock);
+
+        doiRequestsService = doiRequestServiceWithLocalDbClient(mockClock);
         this.handler = new CreateDoiRequestHandler(environment, doiRequestsService);
     }
 
@@ -156,6 +158,11 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_CONFLICT)));
         assertThat(problem.getDetail(), containsString(DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
+    }
+
+    private DoiRequestsService doiRequestServiceWithLocalDbClient(Clock mockClock) {
+        return DynamoDbDoiRequestsServiceFactory.fromClientWithoutCredentials(client, environment, mockClock)
+                .getService(EMPTY_CREDENTIALS);
     }
 
     private String validUsername(Publication publication) {

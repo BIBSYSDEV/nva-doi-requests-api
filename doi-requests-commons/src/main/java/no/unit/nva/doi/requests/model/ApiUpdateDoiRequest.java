@@ -1,10 +1,10 @@
 package no.unit.nva.doi.requests.model;
 
-import no.unit.nva.model.DoiRequestStatus;
-import nva.commons.utils.JacocoGenerated;
-
 import java.util.Objects;
 import java.util.Optional;
+
+import no.unit.nva.model.DoiRequestStatus;
+import nva.commons.utils.JacocoGenerated;
 
 public class ApiUpdateDoiRequest extends AbstractDoiRequest {
 
