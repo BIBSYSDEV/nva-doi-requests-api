@@ -350,6 +350,7 @@ Resources:
       Handler: no.unit.nva.doi.requests.FindDoiRequestsHandler::handleRequest
       Runtime: java11
       MemorySize: 1400
+      AutoPublishAlias: FindDoiRequestHotInstance
       ProvisionedConcurrencyConfig:
         ProvisionedConcurrentExecutions: 3
       Environment:
