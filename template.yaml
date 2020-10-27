@@ -351,6 +351,8 @@ Resources:
       Runtime: java11
       MemorySize: 1400
       AutoPublishAlias: FindDoiRequestHotInstance
+      DeploymentPreference:
+        Type: AllAtOnce
       ProvisionedConcurrencyConfig:
         ProvisionedConcurrentExecutions: 3
       Environment:
