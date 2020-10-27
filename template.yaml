@@ -95,7 +95,7 @@ Resources:
                         $ref: '#/components/schemas/Problem'
               x-amazon-apigateway-integration:
                 uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}/invocations
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaFindDoiRequestsFunction.Arn}:FindDoiRequestHotInstance/invocations
                 responses: { }
                 httpMethod: POST
                 type: AWS_PROXY
