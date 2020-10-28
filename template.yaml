@@ -24,9 +24,10 @@ Globals:
       AllowOrigin: "'*'"
 
 Parameters:
-  ApiHost:
+  HttpScheme:
     Type: String
-    Description: The general api address for the publications endpoint (e.g. api.dev.nva.aws.unit.no)
+    Description: http or https
+    Default: https
   CognitoAuthorizerArn:
     Type: String
     Description: Reference to Cognito UserPool for the stage
@@ -302,8 +303,8 @@ Resources:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
           INDEX_NAME: !Ref DoiRequestsIndexName
-          API_HOST: !Ref ApiHost
-          API_SCHEME: https
+          API_HOST: !Ref CustomDomain
+          API_SCHEME: !Ref HttpScheme
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DoiRequestsTableName
