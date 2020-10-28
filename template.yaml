@@ -354,7 +354,7 @@ Resources:
       DeploymentPreference:
         Type: AllAtOnce
       ProvisionedConcurrencyConfig:
-        ProvisionedConcurrentExecutions: 3
+        ProvisionedConcurrentExecutions: 2
       Environment:
         Variables:
           ALLOWED_ORIGIN: '*'
