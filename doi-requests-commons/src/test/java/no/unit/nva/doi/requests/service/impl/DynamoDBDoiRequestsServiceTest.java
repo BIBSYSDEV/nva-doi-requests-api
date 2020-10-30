@@ -13,7 +13,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
@@ -82,12 +82,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         service = new DynamoDBDoiRequestsService(client, environment, clock);
     }
 
-    @Test
-    public void constructorCreatesInstanceOnValidInput() {
-        DynamoDBDoiRequestsService dynamoDBDoiRequestsService =
-            new DynamoDBDoiRequestsService(client, mockEnvironment());
-        assertNotNull(dynamoDBDoiRequestsService);
-    }
 
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
@@ -125,12 +119,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         Publication actualPublication = publications.get(0);
         assertThat(actualPublication, is(equalTo(latestPublication)));
-    }
-
-    private Publication updatedPublication(Publication publication) {
-        return publication.copy()
-            .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
-            .build();
     }
 
     @Test
@@ -293,16 +281,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(exception.getMessage(), containsString(exceptionMessage));
     }
 
-    private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
-        throws NoSuchFieldException, IllegalAccessException {
-        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            new DynamoDBDoiRequestsService(client, environment);
-        Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
-        field.setAccessible(true);
-        field.set(serviceWithFailingJsonObjectMapper, objectMapper);
-        return serviceWithFailingJsonObjectMapper;
-    }
-
     @Test
     public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
         throws NotFoundException, ForbiddenException, IOException {
@@ -320,6 +298,23 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
 
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
+    }
+
+    private Publication updatedPublication(Publication publication) {
+        return publication.copy()
+            .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
+            .build();
+    }
+
+    private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
+        throws NoSuchFieldException, IllegalAccessException {
+        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
+            new DynamoDBDoiRequestsService(client, environment);
+
+        Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
+        field.setAccessible(true);
+        field.set(serviceWithFailingJsonObjectMapper, objectMapper);
+        return serviceWithFailingJsonObjectMapper;
     }
 
     private void assertThatModifiedDateIsUpdated(Publication originalPublication, Publication updatedPublication) {
