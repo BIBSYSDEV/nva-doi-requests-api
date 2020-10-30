@@ -58,6 +58,7 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
                                 STSAssumeRoleSessionCredentialsProvider credentials,
                                 Context context)
         throws ApiGatewayException {
+
         try {
             input.validate();
             UUID publicationIdentifier = getPublicationIdentifier(requestInfo);

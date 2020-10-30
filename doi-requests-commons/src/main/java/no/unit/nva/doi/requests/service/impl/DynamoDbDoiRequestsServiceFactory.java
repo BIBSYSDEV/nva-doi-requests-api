@@ -83,6 +83,7 @@ public class DynamoDbDoiRequestsServiceFactory {
         }
     }
 
+    @JacocoGenerated
     private static DynamoDBDoiRequestsService handleMissingSdkClientError() {
         logger.error(MISSING_SDK_CLIENT_ERROR);
         return null;
