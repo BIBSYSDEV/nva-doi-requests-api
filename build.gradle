@@ -33,7 +33,6 @@ subprojects {
         nvaDatamodelJavaVersion = '0.10.6'
     }
 
-
     dependencies {
         testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.15'
         testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
@@ -101,5 +100,4 @@ subprojects {
             }
         }
     }
-
 }
