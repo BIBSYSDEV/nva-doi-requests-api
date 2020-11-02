@@ -103,8 +103,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .orElseThrow(this::handleErrorFetchingPublications);
     }
 
-    private boolean hasDoiRequestStatus(Publication publ, DoiRequestStatus status) {
-        return Optional.of(publ)
+    private boolean hasDoiRequestStatus(Publication publication, DoiRequestStatus status) {
+        return Optional.of(publication)
             .map(Publication::getDoiRequest)
             .map(DoiRequest::getStatus)
             .filter(st -> st.equals(status))
