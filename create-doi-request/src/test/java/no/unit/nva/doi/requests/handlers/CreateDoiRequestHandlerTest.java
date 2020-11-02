@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;

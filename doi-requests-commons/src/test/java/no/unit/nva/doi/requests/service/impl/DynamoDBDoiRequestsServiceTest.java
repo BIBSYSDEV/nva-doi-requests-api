@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithDoiRequest;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithoutDoiRequest;
@@ -64,7 +65,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_USERNAME = "invalidUsername";
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
-    public static final AWSCredentialsProvider EMPTY_CREDENTIALS = null;
     private final Instant mockedNow = Instant.now();
     private DynamoDBDoiRequestsService service;
     private Environment environment;
@@ -311,7 +311,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         throws NoSuchFieldException, IllegalAccessException {
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
             DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment)
-                .getService(DynamoDBDoiRequestsServiceTest.EMPTY_CREDENTIALS);
+                .getService(EMPTY_CREDENTIALS);
 
         Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
         field.setAccessible(true);

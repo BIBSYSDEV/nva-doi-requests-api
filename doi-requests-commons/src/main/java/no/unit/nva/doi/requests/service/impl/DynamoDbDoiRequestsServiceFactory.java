@@ -15,6 +15,8 @@ public class DynamoDbDoiRequestsServiceFactory {
 
     public static final String MISSING_SDK_CLIENT_ERROR = "Sdk client has not been installed in the system";
     private static final Logger logger = LoggerFactory.getLogger(DynamoDbDoiRequestsServiceFactory.class);
+    public static final AWSCredentialsProvider EMPTY_CREDENTIALS = null;
+
     private final Function<AWSCredentialsProvider, DynamoDBDoiRequestsService> serviceProvider;
 
     @JacocoGenerated

@@ -4,6 +4,7 @@ import static no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest.INVAL
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
