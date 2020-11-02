@@ -50,7 +50,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
     public static final int SINGLE_ITEM = 1;
     public static final String WRONG_OWNER_ERROR =
-            "User with username %s not allowed to create a DoiRequest for publication owned by %s";
+        "User with username %s not allowed to create a DoiRequest for publication owned by %s";
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
@@ -80,11 +80,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
         DynamoDB dynamoDB = new DynamoDB(client);
         this.publicationsTable = dynamoDB.getTable(
-                environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
+            environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
         this.doiRequestsIndex = publicationsTable.getIndex(
-                environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
+            environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
     }
-
 
     @Override
     public List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
@@ -94,21 +93,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                 .stream()
                 .filter(publication -> hasDoiRequestStatus(publication, status))
                 .collect(Collectors.toList());
-    }
-
-    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
-        return attempt(() -> queryByPublisher(publisher))
-            .map(this::extractPublications)
-            .map(this::keepMostRecentPublications)
-            .orElseThrow(this::handleErrorFetchingPublications);
-    }
-
-    private boolean hasDoiRequestStatus(Publication publication, DoiRequestStatus desiredStatus) {
-        return Optional.of(publication)
-            .map(Publication::getDoiRequest)
-            .map(DoiRequest::getStatus)
-            .filter(actualStatus -> actualStatus.equals(desiredStatus))
-            .isPresent();
     }
 
     @Override
@@ -148,6 +132,21 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
+    }
+
+    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
+        return attempt(() -> queryByPublisher(publisher))
+            .map(this::extractPublications)
+            .map(this::keepMostRecentPublications)
+            .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private boolean hasDoiRequestStatus(Publication publication, DoiRequestStatus desiredStatus) {
+        return Optional.of(publication)
+            .map(Publication::getDoiRequest)
+            .map(DoiRequest::getStatus)
+            .filter(actualStatus -> actualStatus.equals(desiredStatus))
+            .isPresent();
     }
 
     private List<Publication> keepMostRecentPublications(List<Publication> publications) {
