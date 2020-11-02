@@ -148,12 +148,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
-        try {
-            String json = JsonUtils.objectMapper.writeValueAsString(publication);
-            logger.info(json);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
         putItem(publication);
     }
 
