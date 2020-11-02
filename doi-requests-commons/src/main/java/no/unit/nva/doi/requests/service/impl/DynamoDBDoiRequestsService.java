@@ -2,7 +2,6 @@ package no.unit.nva.doi.requests.service.impl;
 
 import static java.util.Objects.nonNull;
 import static nva.commons.utils.attempt.Try.attempt;
-
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -11,7 +10,6 @@ import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.ItemCollection;
 import com.amazonaws.services.dynamodbv2.document.KeyAttribute;
 import com.amazonaws.services.dynamodbv2.document.QueryOutcome;
-import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
@@ -100,11 +98,26 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
         throws ApiGatewayException {
-        return attempt(() -> limitKeyRangeToStatus(status))
-            .map(statusLimitedRange -> queryByPublisherAndStatus(publisher, statusLimitedRange))
+        return
+            extractMostRecentVersionOfEachPublication(publisher)
+                .stream()
+                .filter(publication -> hasDoiRequestStatus(publication, status))
+                .collect(Collectors.toList());
+    }
+
+    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
+        return attempt(() -> queryByPublisher(publisher))
             .map(this::extractPublications)
             .map(this::keepMostRecentPublications)
             .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private boolean hasDoiRequestStatus(Publication publ, DoiRequestStatus status) {
+        return Optional.of(publ)
+            .map(Publication::getDoiRequest)
+            .map(DoiRequest::getStatus)
+            .filter(st -> st.equals(status))
+            .isPresent();
     }
 
     @Override
@@ -167,17 +180,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return nonNull(publication.getOwner()) && publication.getOwner().equals(owner);
     }
 
-    private RangeKeyCondition limitKeyRangeToStatus(DoiRequestStatus status) {
-        RangeKeyCondition rangeKeyCondition = new RangeKeyCondition(DOI_REQUEST_STATUS_DATE);
-        rangeKeyCondition.beginsWith(status.toString());
-        return rangeKeyCondition;
-    }
-
-    private ItemCollection<QueryOutcome> queryByPublisherAndStatus(URI publisher,
-                                                                   RangeKeyCondition statusLimitedRange) {
-        QuerySpec querySpec = new QuerySpec()
-            .withHashKey(PUBLISHER_ID, publisher.toString())
-            .withRangeKeyCondition(statusLimitedRange);
+    private ItemCollection<QueryOutcome> queryByPublisher(URI publisher) {
+        QuerySpec querySpec = new QuerySpec().withHashKey(PUBLISHER_ID, publisher.toString());
         return doiRequestsIndex.query(querySpec);
     }
 
