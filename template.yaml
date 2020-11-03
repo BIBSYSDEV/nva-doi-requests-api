@@ -286,9 +286,28 @@ Resources:
                   - sts:AssumeRole
                   - sts:TagSession
                 Resource:
-                  - !Join ["",["arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName]]
-                  - !Join ["",["arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName,"/index/",!Ref DoiRequestsIndexName]]
-
+                  - !Join
+                    - ""
+                    - - "arn:aws:dynamodb"
+                      - ":"
+                      - !Ref AWS::Region
+                      - ":"
+                      - !Ref AWS::AccountId
+                      - ":"
+                      - "table/"
+                      - !Ref DoiRequestsTableName
+                  - !Join
+                    - ""
+                    - - "arn:aws:dynamodb"
+                      - ":"
+                      - !Ref AWS::Region
+                      - ":"
+                      - !Ref AWS::AccountId
+                      - ":"
+                      - "table/"
+                      - !Ref DoiRequestsTableName
+                      - "/index/"
+                      - !Ref DoiRequestsIndexName
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
