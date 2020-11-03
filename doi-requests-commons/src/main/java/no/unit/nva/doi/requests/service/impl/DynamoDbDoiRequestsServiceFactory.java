@@ -14,14 +14,13 @@ import org.slf4j.LoggerFactory;
 public class DynamoDbDoiRequestsServiceFactory {
 
     public static final String MISSING_SDK_CLIENT_ERROR = "Sdk client has not been installed in the system";
-    private static final Logger logger = LoggerFactory.getLogger(DynamoDbDoiRequestsServiceFactory.class);
     public static final AWSCredentialsProvider EMPTY_CREDENTIALS = null;
-
+    private static final Logger logger = LoggerFactory.getLogger(DynamoDbDoiRequestsServiceFactory.class);
     private final Function<AWSCredentialsProvider, DynamoDBDoiRequestsService> serviceProvider;
 
     @JacocoGenerated
     public DynamoDbDoiRequestsServiceFactory() {
-        this(new Environment());
+        this(defaultEnvironment());
     }
 
     @JacocoGenerated
@@ -62,6 +61,10 @@ public class DynamoDbDoiRequestsServiceFactory {
     @JacocoGenerated
     public DynamoDBDoiRequestsService getService(AWSCredentialsProvider credentials) {
         return serviceProvider.apply(credentials);
+    }
+
+    private static Environment defaultEnvironment() {
+        return new Environment();
     }
 
     @JacocoGenerated
