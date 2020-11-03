@@ -63,6 +63,7 @@ public class DynamoDbDoiRequestsServiceFactory {
         return serviceProvider.apply(credentials);
     }
 
+    @JacocoGenerated
     private static Environment defaultEnvironment() {
         return new Environment();
     }
