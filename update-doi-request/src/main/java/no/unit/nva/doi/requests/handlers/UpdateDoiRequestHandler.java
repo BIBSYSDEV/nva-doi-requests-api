@@ -40,7 +40,7 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     @JacocoGenerated
     public UpdateDoiRequestHandler() {
-        this(new Environment(), stsClient(), new DynamoDbDoiRequestsServiceFactory());
+        this(defaultEnvironment(), defaultStsClient(), defaultRequestsServiceFactory());
     }
 
     public UpdateDoiRequestHandler(Environment environment,
@@ -81,7 +81,17 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
     }
 
     @JacocoGenerated
-    private static AWSSecurityTokenService stsClient() {
+    private static DynamoDbDoiRequestsServiceFactory defaultRequestsServiceFactory() {
+        return new DynamoDbDoiRequestsServiceFactory();
+    }
+
+    @JacocoGenerated
+    private static Environment defaultEnvironment() {
+        return new Environment();
+    }
+
+    @JacocoGenerated
+    private static AWSSecurityTokenService defaultStsClient() {
         return AWSSecurityTokenServiceClientBuilder.defaultClient();
     }
 
