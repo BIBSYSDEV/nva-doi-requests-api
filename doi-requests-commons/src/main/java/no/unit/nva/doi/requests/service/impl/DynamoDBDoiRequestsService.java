@@ -146,7 +146,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return Optional.of(publication)
             .map(Publication::getDoiRequest)
             .map(DoiRequest::getStatus)
-            .filter(actualStatus -> actualStatus.equals(desiredStatus))
+            .filter(desiredStatus::equals)
             .isPresent();
     }
 
