@@ -79,10 +79,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         this.objectMapper = JsonUtils.objectMapper;
 
         DynamoDB dynamoDB = new DynamoDB(client);
-        this.publicationsTable = dynamoDB.getTable(
-            environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
-        this.doiRequestsIndex = publicationsTable.getIndex(
-            environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
+        final var tableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
+        final var indexName = environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE);
+        this.publicationsTable = dynamoDB.getTable(tableName);
+
+        this.doiRequestsIndex = publicationsTable.getIndex(indexName);
     }
 
     @Override
