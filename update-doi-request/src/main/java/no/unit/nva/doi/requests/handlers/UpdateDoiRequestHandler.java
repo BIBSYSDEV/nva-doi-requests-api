@@ -32,6 +32,7 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
+    private static final List<Tag> FUTURE_ACCESS_RIGHTS = null;
 
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
@@ -72,7 +73,8 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
-        return null;
+        // TODO: When Roles will have access rights and the policies will demand it we will update this part
+        return FUTURE_ACCESS_RIGHTS;
     }
 
     @Override
