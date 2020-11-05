@@ -10,6 +10,7 @@ import static nva.commons.handlers.ApiGatewayHandler.ALLOWED_ORIGIN_ENV;
 
 import java.util.Map;
 import java.util.Optional;
+import nva.commons.handlers.AuthorizedHandler;
 import nva.commons.utils.Environment;
 
 public final class MockEnvironment {
@@ -18,6 +19,7 @@ public final class MockEnvironment {
     public static final String ALLOW_CORS = "*";
     public static final String FAKE_API_HOST_ENV = "mocked-hostname.example.net";
     public static final String FAKE_API_SCHEME_ENV = "https";
+    public static final String ASSUMED_ROLE_ARN = "AssumedRoleArn";
 
     /**
      * Mock environment with all env variables necessary (database and handlers).
@@ -30,7 +32,8 @@ public final class MockEnvironment {
                 PUBLICATIONS_TABLE_NAME_ENV_VARIABLE, NVA_RESOURCES_TABLE_NAME,
                 DOI_REQUESTS_INDEX_ENV_VARIABLE, BY_DOI_REQUEST_INDEX_NAME,
                 API_HOST_ENV_VARIABLE, FAKE_API_HOST_ENV,
-                API_SCHEME_ENV_VARIABLE, FAKE_API_SCHEME_ENV
+                API_SCHEME_ENV_VARIABLE, FAKE_API_SCHEME_ENV,
+                AuthorizedHandler.ASSUMED_ROLE_ARN_ENV_VAR, ASSUMED_ROLE_ARN
             );
         return new Environment() {
             @Override

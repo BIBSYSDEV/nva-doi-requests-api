@@ -25,7 +25,6 @@ subprojects {
     // source-code version and must be <= targetCompatibility
     targetCompatibility = JavaVersion.VERSION_11 // bytecode target version
 
-
     project.ext{
         jacksonVersion = '2.10.2'
         awsSdkVersion = '1.11.714'
@@ -33,7 +32,6 @@ subprojects {
         nvaCommonsVersion = '0.5.4'
         nvaDatamodelJavaVersion = '0.10.6'
     }
-
 
     dependencies {
         testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.15'
@@ -102,5 +100,4 @@ subprojects {
             }
         }
     }
-
 }

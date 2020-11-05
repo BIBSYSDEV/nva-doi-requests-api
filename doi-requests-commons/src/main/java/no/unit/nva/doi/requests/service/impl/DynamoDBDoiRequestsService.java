@@ -3,7 +3,6 @@ package no.unit.nva.doi.requests.service.impl;
 import static java.util.Objects.nonNull;
 import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -38,7 +37,6 @@ import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.utils.Environment;
-import nva.commons.utils.JacocoGenerated;
 import nva.commons.utils.JsonUtils;
 import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
@@ -56,10 +54,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
-    private final Table publicationsTable;
-    private final Index doiRequestsIndex;
     private final Clock clockForTimestamps;
     private final ObjectMapper objectMapper;
+
+    private final Table publicationsTable;
+    private final Index doiRequestsIndex;
 
     /**
      * Constructor for DynamoDBDoiRequestsService.
@@ -67,32 +66,24 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
      * @param table DynamoDB table
      * @param index DynamoDB index
      */
-    public DynamoDBDoiRequestsService(Table table, Index index) {
+    protected DynamoDBDoiRequestsService(Table table, Index index) {
         this.objectMapper = JsonUtils.objectMapper;
         this.publicationsTable = table;
         this.doiRequestsIndex = index;
         this.clockForTimestamps = Clock.systemDefaultZone();
     }
 
-    public DynamoDBDoiRequestsService(AmazonDynamoDB client, Environment environment) {
-        this(client, environment, Clock.systemDefaultZone());
-    }
+    protected DynamoDBDoiRequestsService(AmazonDynamoDB client, Environment environment, Clock clockForTimestamps) {
 
-    public DynamoDBDoiRequestsService(AmazonDynamoDB client, Environment environment,
-                                      Clock clockForTimestamps) {
-
-        DynamoDB dynamoDB = new DynamoDB(client);
-        this.publicationsTable = dynamoDB
-            .getTable(environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE));
-        this.doiRequestsIndex = publicationsTable
-            .getIndex(environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE));
         this.clockForTimestamps = clockForTimestamps;
         this.objectMapper = JsonUtils.objectMapper;
-    }
 
-    @JacocoGenerated
-    public static DynamoDBDoiRequestsService defaultDoiRequestService(Environment environment) {
-        return new DynamoDBDoiRequestsService(AmazonDynamoDBClientBuilder.defaultClient(), environment);
+        DynamoDB dynamoDB = new DynamoDB(client);
+        final var tableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
+        final var indexName = environment.readEnv(ServiceConstants.DOI_REQUESTS_INDEX_ENV_VARIABLE);
+        this.publicationsTable = dynamoDB.getTable(tableName);
+
+        this.doiRequestsIndex = publicationsTable.getIndex(indexName);
     }
 
     @Override
@@ -103,21 +94,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                 .stream()
                 .filter(publication -> hasDoiRequestStatus(publication, status))
                 .collect(Collectors.toList());
-    }
-
-    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
-        return attempt(() -> queryByPublisher(publisher))
-            .map(this::extractPublications)
-            .map(this::keepMostRecentPublications)
-            .orElseThrow(this::handleErrorFetchingPublications);
-    }
-
-    private boolean hasDoiRequestStatus(Publication publ, DoiRequestStatus status) {
-        return Optional.of(publ)
-            .map(Publication::getDoiRequest)
-            .map(DoiRequest::getStatus)
-            .filter(st -> st.equals(status))
-            .isPresent();
     }
 
     @Override
@@ -157,6 +133,21 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         validateUsername(publication, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
+    }
+
+    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
+        return attempt(() -> queryByPublisher(publisher))
+            .map(this::extractPublications)
+            .map(this::keepMostRecentPublications)
+            .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private boolean hasDoiRequestStatus(Publication publication, DoiRequestStatus desiredStatus) {
+        return Optional.of(publication)
+            .map(Publication::getDoiRequest)
+            .map(DoiRequest::getStatus)
+            .filter(desiredStatus::equals)
+            .isPresent();
     }
 
     private List<Publication> keepMostRecentPublications(List<Publication> publications) {

@@ -1,6 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.defaultDoiRequestService;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
@@ -26,16 +26,12 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
 
     @JacocoGenerated
     private CreateDoiRequestHandler(Environment environment) {
-        this(environment, defaultDoiRequestService(environment));
+        this(environment, serviceWithDefaultClientWithoutCredentials(environment));
     }
 
     public CreateDoiRequestHandler(Environment environment, DoiRequestsService doiRequestsService) {
         super(CreateDoiRequest.class, environment, defaultLogger());
         this.doiRequestService = doiRequestsService;
-    }
-
-    private static Logger defaultLogger() {
-        return LoggerFactory.getLogger(CreateDoiRequestHandler.class);
     }
 
     @Override
@@ -50,5 +46,9 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
     @Override
     protected Integer getSuccessStatusCode(CreateDoiRequest input, Void output) {
         return HttpStatus.SC_CREATED;
+    }
+
+    private static Logger defaultLogger() {
+        return LoggerFactory.getLogger(CreateDoiRequestHandler.class);
     }
 }

@@ -4,6 +4,7 @@ import static no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest.INVAL
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
@@ -14,7 +15,6 @@ import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
-import static org.mockito.Mockito.mock;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -30,11 +30,14 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.stubs.FakeContext;
+import no.unit.nva.stubs.FakeStsClient;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.handlers.GatewayResponse;
@@ -50,8 +53,6 @@ import org.zalando.problem.Problem;
 public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     public static final String INVALID_PUBLICATION_IDENTIFIER = "InvalidPublicationId";
-    public static final String VALID_PUBLICATION_IDENTIFIER = UUID.randomUUID().toString();
-    public static final String NULL_STRING_REPRESENTATION = "null";
     public static final String FAKE_ENV_SCHEMA_AND_HOST = FAKE_API_SCHEME_ENV
         + "://"
         + FAKE_API_HOST_ENV
@@ -63,13 +64,15 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private final Context context;
     private final Instant mockNow = Instant.now();
     private final Instant mockOneHourBefore = mockNow.minus(1, ChronoUnit.HOURS);
+    private final FakeStsClient stsClient;
     private DynamoDBDoiRequestsService doiRequestsService;
     private UpdateDoiRequestHandler handler;
 
     public ApiUpdateDoiRequestHandlerTest() {
         environment = mockEnvironment();
         publicationsTableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
-        context = mock(Context.class);
+        stsClient = new FakeStsClient();
+        context = new FakeContext();
     }
 
     @BeforeEach
@@ -77,8 +80,11 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         initializeDatabase();
         Clock mockClock = getFixedClockWithDefaultTimeZone(mockNow);
 
-        doiRequestsService = new DynamoDBDoiRequestsService(client, environment, mockClock);
-        handler = new UpdateDoiRequestHandler(environment, doiRequestsService);
+        DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory = DynamoDbDoiRequestsServiceFactory
+            .serviceWithCustomClientWithoutCredentials(client, environment, mockClock);
+        doiRequestsService = doiRequestsServiceFactory.getService(EMPTY_CREDENTIALS);
+        handler = new UpdateDoiRequestHandler(environment, stsClient, doiRequestsServiceFactory);
+
     }
 
     @Test

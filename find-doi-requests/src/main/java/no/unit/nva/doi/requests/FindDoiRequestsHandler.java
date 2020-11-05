@@ -14,7 +14,7 @@ import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.NotAuthorizedException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
-import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
 import no.unit.nva.model.Publication;
 import nva.commons.exceptions.ApiGatewayException;
@@ -44,7 +44,7 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
 
     @JacocoGenerated
     private FindDoiRequestsHandler(Environment environment) {
-        this(DynamoDBDoiRequestsService.defaultDoiRequestService(environment), environment);
+        this(DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials(environment), environment);
     }
 
     /**

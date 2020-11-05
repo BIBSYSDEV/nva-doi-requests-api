@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithDoiRequest;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithoutDoiRequest;
@@ -20,7 +21,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
@@ -79,9 +79,10 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         initializeDatabase();
         environment = mockEnvironment();
         clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
-        service = new DynamoDBDoiRequestsService(client, environment, clock);
+        service = DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment,
+            clock)
+            .getService(EMPTY_CREDENTIALS);
     }
-
 
     @Test
     public void findDoiRequestsByStatusAndOwnerReturnsEmptyListWhenNoDoiRequests() throws Exception {
@@ -282,7 +283,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
+    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
         throws NotFoundException, ForbiddenException, IOException {
 
         Publication publication = getPublicationWithDoiRequest(clock);
@@ -309,7 +310,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
         throws NoSuchFieldException, IllegalAccessException {
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            new DynamoDBDoiRequestsService(client, environment);
+            DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment)
+                .getService(EMPTY_CREDENTIALS);
 
         Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
         field.setAccessible(true);
