@@ -423,7 +423,7 @@ Resources:
           INDEX_NAME: !Ref DoiRequestsIndexName
           ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
           API_HOST: !Ref CustomDomain
-          API_SCHEME: https
+          API_SCHEME: !Ref HttpScheme
       Role: !GetAtt LambdaRole.Arn
       Events:
         GetEvent:
