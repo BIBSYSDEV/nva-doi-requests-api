@@ -16,6 +16,7 @@ public class DynamoDbDoiRequestsServiceFactory {
     public static final String MISSING_SDK_CLIENT_ERROR = "Sdk client has not been installed in the system";
     public static final AWSCredentialsProvider EMPTY_CREDENTIALS = null;
     private static final Logger logger = LoggerFactory.getLogger(DynamoDbDoiRequestsServiceFactory.class);
+
     private final Function<AWSCredentialsProvider, DynamoDBDoiRequestsService> serviceProvider;
 
     @JacocoGenerated
@@ -42,7 +43,7 @@ public class DynamoDbDoiRequestsServiceFactory {
 
     @JacocoGenerated
     public static DynamoDBDoiRequestsService serviceWithDefaultClientWithoutCredentials(Environment environment) {
-        return new DynamoDbDoiRequestsServiceFactory(environment).getService(null);
+        return new DynamoDbDoiRequestsServiceFactory(environment).getService(EMPTY_CREDENTIALS);
     }
 
     @JacocoGenerated
