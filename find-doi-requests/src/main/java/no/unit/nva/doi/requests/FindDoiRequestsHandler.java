@@ -2,6 +2,7 @@ package no.unit.nva.doi.requests;
 
 import static no.unit.nva.doi.requests.userdetails.UserDetails.ROLE;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
+import static nva.commons.utils.attempt.Try.attempt;
 import static org.apache.http.HttpStatus.SC_OK;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -22,6 +23,7 @@ import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +63,9 @@ public class FindDoiRequestsHandler extends ApiGatewayHandler<Void, DoiRequestsR
     @Override
     protected DoiRequestsResponse processInput(Void input, RequestInfo requestInfo, Context context)
         throws ApiGatewayException {
+
+        String requestInfoJson = attempt(() -> JsonUtils.objectMapper.writeValueAsString(requestInfo)).orElseThrow();
+        logger.info("RequestInfo:\n" + requestInfoJson);
 
         String user;
         String requestedRole;
