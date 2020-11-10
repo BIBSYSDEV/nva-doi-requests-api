@@ -18,22 +18,24 @@ import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
-import nva.commons.handlers.AuthorizedHandler;
+import nva.commons.handlers.AuthorizedApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.JsonUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpdateDoiRequest, Void> {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
     private static final List<Tag> FUTURE_ACCESS_RIGHTS = null;
 
+    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
     private final String apiScheme;
@@ -59,6 +61,9 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
                                 STSAssumeRoleSessionCredentialsProvider credentials,
                                 Context context)
         throws ApiGatewayException {
+
+        String requestInfoJson = attempt(() -> JsonUtils.objectMapper.writeValueAsString(requestInfo)).orElseThrow();
+        logger.info("RequestInfo:\n" + requestInfoJson);
 
         try {
             input.validate();
