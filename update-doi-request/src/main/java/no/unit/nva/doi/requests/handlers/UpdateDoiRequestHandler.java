@@ -8,7 +8,9 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder
 import com.amazonaws.services.securitytoken.model.Tag;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
@@ -78,8 +80,17 @@ public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpda
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
-        // TODO: When Roles will have access rights and the policies will demand it we will update this part
-        return FUTURE_ACCESS_RIGHTS;
+        return requestInfo.getAccessRights().stream().map(ar ->
+            new Tag().withKey(tagKey(ar)).withValue(tagValue(ar)))
+            .collect(Collectors.toList());
+    }
+
+    private String tagValue(String ar) {
+        return ar.toUpperCase(Locale.getDefault());
+    }
+
+    private String tagKey(String ar) {
+        return ar.toLowerCase(Locale.getDefault());
     }
 
     @Override

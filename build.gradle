@@ -29,7 +29,7 @@ subprojects {
         jacksonVersion = '2.10.2'
         awsSdkVersion = '1.11.714'
         junit5Version = '5.6.0'
-        nvaCommonsVersion = '0.6.1'
+        nvaCommonsVersion = 'c4467f5d83ee9311'
         nvaDatamodelJavaVersion = '0.10.6'
     }
 
