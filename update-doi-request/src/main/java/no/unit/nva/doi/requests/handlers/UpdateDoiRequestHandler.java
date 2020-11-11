@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.amazonaws.services.securitytoken.model.Tag;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -80,9 +81,15 @@ public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpda
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
-        return requestInfo.getAccessRights().stream().map(ar ->
-            new Tag().withKey(tagKey(ar)).withValue(tagValue(ar)))
+
+        List<Tag> tags = attempt(requestInfo::getAccessRights)
+            .toOptional()
+            .stream()
+            .flatMap(Collection::stream)
+            .map(ar ->
+                new Tag().withKey(tagKey(ar)).withValue(tagValue(ar)))
             .collect(Collectors.toList());
+        return tags;
     }
 
     private String tagValue(String ar) {
