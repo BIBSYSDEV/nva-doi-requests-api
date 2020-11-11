@@ -1,23 +1,19 @@
-repositories {
-    // Repository for running Embedded DynamoDB locally.
-    maven { url "https://s3.eu-central-1.amazonaws.com/dynamodb-local-frankfurt/release" }
-}
 
 
 dependencies {
-    api group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: project.nvaCommonsVersion
-    api group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: project.nvaDatamodelJavaVersion
+    api group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: project.ext.nvaCommonsVersion
+    api group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: project.ext.nvaDatamodelJavaVersion
     api group: 'io.mikael', name: 'urlbuilder', version: '2.0.9'
-    api group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: project.jacksonVersion
-    api group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: project.jacksonVersion
-    api group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: project.jacksonVersion
-    api group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jdk8', version: project.jacksonVersion
+    api group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: project.ext.jacksonVersion
+    api group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: project.ext.jacksonVersion
+    api group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: project.ext.jacksonVersion
+    api group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jdk8', version: project.ext.jacksonVersion
     api group: 'org.zalando', name: 'problem', version: '0.23.0'
     api group: 'org.zalando', name: 'jackson-datatype-problem', version: '0.23.0'
     api group: 'com.amazonaws', name: 'aws-lambda-java-core', version: '1.2.0'
-    api group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: project.awsSdkVersion
-    api group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: project.awsSdkVersion
-    api group: 'com.amazonaws', name: 'aws-java-sdk-sts', version:project.awsSdkVersion
+    api group: 'com.amazonaws', name: 'aws-java-sdk-lambda', version: project.ext.awsSdkVersion
+    api group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: project.ext.awsSdkVersion
+    api group: 'com.amazonaws', name: 'aws-java-sdk-sts', version:project.ext.awsSdkVersion
 
 
     implementation(project(':doi-request-common-constants'))
