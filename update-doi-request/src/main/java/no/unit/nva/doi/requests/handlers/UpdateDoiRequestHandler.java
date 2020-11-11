@@ -36,7 +36,6 @@ public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpda
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
-    private static final List<Tag> FUTURE_ACCESS_RIGHTS = null;
 
     private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
