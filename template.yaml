@@ -291,6 +291,10 @@ Resources:
                 Condition:
                   StringEquals:
                     "aws:PrincipalTag/approve_doi_request": "APPROVE_DOI_REQUEST"
+                  "ForAllValues:StringEquals":
+                    "dynamodb:Attributes":
+                      - doiRequest
+
 
 
   LambdaRole:

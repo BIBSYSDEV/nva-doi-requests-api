@@ -237,6 +237,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private void putItem(Publication publication) {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec = new PutItemSpec().withItem(item);
+
         publicationsTable.putItem(putItemSpec);
     }
 
