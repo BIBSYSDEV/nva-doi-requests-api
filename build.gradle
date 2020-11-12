@@ -27,9 +27,9 @@ subprojects {
 
     project.ext{
         jacksonVersion = '2.10.2'
-        awsSdkVersion = '1.11.714'
+        awsSdkVersion = '1.11.897'
         junit5Version = '5.6.0'
-        nvaCommonsVersion = '0.5.4'
+        nvaCommonsVersion = '0.6.4'
         nvaDatamodelJavaVersion = '0.10.6'
     }
 
@@ -37,9 +37,9 @@ subprojects {
         testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.15'
         testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
         testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.2.4'
-        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.junit5Version
-        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-migrationsupport', version: project.junit5Version
-        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.junit5Version
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.ext.junit5Version
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-migrationsupport', version: project.ext.junit5Version
+        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.ext.junit5Version
     }
 
     test {
