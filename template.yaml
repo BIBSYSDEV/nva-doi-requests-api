@@ -284,13 +284,13 @@ Resources:
                   - sts:TagSession
                 Resource:
                   - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName,"/index/",!Ref DoiRequestsIndexName ] ]
-        #                Condition:
+                Condition:
         #                  #                  "ForAllValues:StringEquals":
         #                  #                    "dynamodb:LeadingKeys":
         #                  #                      - "${aws:PrincipalTag/publisherIdentifier}"
-        #                  StringEquals:
-        #                    "APPROVE_DOI_REQUEST": "${aws:PrincipalTag/approve_doi_request}"
-        #                    "REJECT_DOI_REQUEST": "${aws:PrincipalTag/reject_doi_request}"
+                  StringEquals:
+                  "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
+                  "${aws:PrincipalTag/reject_doi_request}" : "REJECT_DOI_REQUEST"
 
         - PolicyName: CuratorWriteAccess
           PolicyDocument:
@@ -308,10 +308,10 @@ Resources:
                   - sts:TagSession
                 Resource:
                   - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName ] ]
-  #                Condition:
-  #                  StringEquals:
-  #                    "APPROVE_DOI_REQUEST": "${aws:PrincipalTag/approve_doi_request}"
-  #                    "REJECT_DOI_REQUEST": "${aws:PrincipalTag/reject_doi_request}"
+                  Condition:
+                   StringEquals:
+                      "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
+                      "${aws:PrincipalTag/reject_doi_request}": "REJECT_DOI_REQUEST"
 
 
   LambdaRole:
