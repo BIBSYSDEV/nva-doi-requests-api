@@ -308,10 +308,10 @@ Resources:
                   - sts:TagSession
                 Resource:
                   - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName ] ]
-                  Condition:
-                   StringEquals:
-                      "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
-                      "${aws:PrincipalTag/reject_doi_request}": "REJECT_DOI_REQUEST"
+                Condition:
+                StringEquals:
+                  "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
+                  "${aws:PrincipalTag/reject_doi_request}": "REJECT_DOI_REQUEST"
 
 
   LambdaRole:
