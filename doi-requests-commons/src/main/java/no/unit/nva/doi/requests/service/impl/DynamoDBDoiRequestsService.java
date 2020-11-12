@@ -89,11 +89,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status)
         throws ApiGatewayException {
-        return
-            extractMostRecentVersionOfEachPublication(publisher)
-                .stream()
-                .filter(publication -> hasDoiRequestStatus(publication, status))
-                .collect(Collectors.toList());
+        List<Publication> result = extractMostRecentVersionOfEachPublication(publisher)
+            .stream()
+            .filter(publication -> hasDoiRequestStatus(publication, status))
+            .collect(Collectors.toList());
+        return result;
     }
 
     @Override
