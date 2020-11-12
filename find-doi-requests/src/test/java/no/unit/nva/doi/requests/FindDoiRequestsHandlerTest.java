@@ -7,8 +7,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -16,8 +16,11 @@ import java.net.URI;
 import java.util.Map;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
-import no.unit.nva.doi.requests.service.DoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.stubs.FakeContext;
+import no.unit.nva.stubs.FakeStsClient;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import no.unit.nva.testutils.TestHeaders;
 import nva.commons.exceptions.ApiGatewayException;
@@ -44,29 +47,39 @@ public class FindDoiRequestsHandlerTest {
     public static final String INVALID_ROLE = "invalid_role";
     public static final String EDITOR = "editor";
     public static final String SAMPLE_CUSTOMER_ID = "http://example.org/publisher/123";
-    private DoiRequestsService doiRequestsService;
+
     private FindDoiRequestsHandler handler;
     private ByteArrayOutputStream outputStream;
     private Context context;
+    private DynamoDbDoiRequestsServiceFactory factory;
 
     /**
      * Set up environment for test.
      */
     @BeforeEach
     public void setUp() {
-        doiRequestsService = mock(DoiRequestsService.class);
+
+        Environment environment = mockEnvironment();
+        AWSSecurityTokenService fakeStsClient = new FakeStsClient();
+        factory = createDefaultFactory();
+        handler = new FindDoiRequestsHandler(environment, factory, fakeStsClient);
+        outputStream = new ByteArrayOutputStream();
+        context = new FakeContext();
+    }
+
+    private Environment mockEnvironment() {
         Environment environment = mock(Environment.class);
         when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
-        handler = new FindDoiRequestsHandler(doiRequestsService, environment);
-        outputStream = new ByteArrayOutputStream();
-        context = mock(Context.class);
+        when(environment.readEnv(anyString())).thenReturn("*");
+        return environment;
     }
 
     @Test
     public void handleRequestReturnsStatusOKOnValidCreatorRoleInput() throws Exception {
-        prepareMocksWithOkResponse();
+        factory = prepareMocksWithOkResponse();
 
         InputStream inputStream = createRequestWithRole(CREATOR);
+        FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -134,13 +147,19 @@ public class FindDoiRequestsHandlerTest {
 
     @Test
     public void handleRequestReturnsStatusBadGatewayOnServiceError() throws Exception {
-        prepareMocksWithDatabaseError();
+        DynamoDbDoiRequestsServiceFactory factory = prepareMocksWithDatabaseError();
+        FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
 
         InputStream inputStream = createRequestWithRole(CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<Problem> actual = GatewayResponse.fromOutputStream(outputStream);
         assertEquals(HttpStatus.SC_BAD_GATEWAY, actual.getStatusCode());
+    }
+
+    private DynamoDbDoiRequestsServiceFactory createDefaultFactory() {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
+        return new DynamoDbDoiRequestsServiceFactory(cred -> doiRequestsService);
     }
 
     private InputStream createRequestWithRole(String creator) throws JsonProcessingException {
@@ -167,16 +186,22 @@ public class FindDoiRequestsHandlerTest {
         );
     }
 
-    private void prepareMocksWithOkResponse() throws ApiGatewayException {
+    private DynamoDbDoiRequestsServiceFactory prepareMocksWithOkResponse() throws ApiGatewayException {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
         when(doiRequestsService.findDoiRequestsByStatusAndOwner(
             any(URI.class), any(DoiRequestStatus.class), anyString()
         )).thenReturn(new DoiRequestsResponse());
+        factory = new DynamoDbDoiRequestsServiceFactory(ignored -> doiRequestsService);
+        return factory;
     }
 
-    private void prepareMocksWithDatabaseError() throws ApiGatewayException {
+    private DynamoDbDoiRequestsServiceFactory prepareMocksWithDatabaseError() throws ApiGatewayException {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
         when(doiRequestsService.findDoiRequestsByStatusAndOwner(
             any(URI.class), any(DoiRequestStatus.class), anyString()
         )).thenThrow(DynamoDBException.class);
+        factory = new DynamoDbDoiRequestsServiceFactory(ignored -> doiRequestsService);
+        return factory;
     }
 
     private Map<String, Object> getRequestContext() {

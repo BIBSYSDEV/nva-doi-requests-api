@@ -6,6 +6,7 @@ repositories {
 dependencies {
     implementation( project (":doi-request-common-constants"))
     implementation group: 'com.github.BIBSYSDEV', name: 'nva-datamodel-java', version: project.ext.nvaDatamodelJavaVersion
+    implementation group: 'com.amazonaws', name: 'aws-java-sdk-sts', version:project.ext.awsSdkVersion
 
     implementation group: 'com.github.BIBSYSDEV', name: 'nva-commons', version: project.ext.nvaCommonsVersion
 

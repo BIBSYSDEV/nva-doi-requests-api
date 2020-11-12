@@ -7,6 +7,7 @@ dependencies {
     implementation project(":doi-requests-commons")
     implementation(project(":doi-request-common-constants"))
 
+    implementation group: 'com.amazonaws', name: 'aws-java-sdk-sts', version: project.ext.awsSdkVersion
     testImplementation(project(":test-module")) {
         because("it contains the library for the local DynamoDb")
     }

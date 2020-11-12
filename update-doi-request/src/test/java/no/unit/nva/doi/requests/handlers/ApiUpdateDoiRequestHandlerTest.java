@@ -41,6 +41,7 @@ import no.unit.nva.stubs.FakeStsClient;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.handlers.GatewayResponse;
+import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.log.LogUtils;
 import nva.commons.utils.log.TestAppender;
@@ -103,7 +104,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsNotFoundWhenPublicationDoesNotExist() throws IOException {
-
+        TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
         ApiUpdateDoiRequest updateDoiRequest = createValidApiUpdateDoiRequest();
 
@@ -328,10 +329,12 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                                       String username)
         throws JsonProcessingException {
         var requestContext = objectMapper.createObjectNode();
-        requestContext
+        ObjectNode claims = requestContext
             .putObject("authorizer")
-            .putObject("claims")
-            .put("custom:feideId", username);
+            .putObject("claims");
+
+        claims.put(RequestInfo.FEIDE_ID_CLAIM, username);
+        claims.put(RequestInfo.CUSTOMER_ID_CLAIM, "http://some.customer.id");
 
         return createRequest(doiRequest, pathParameters, requestContext);
     }

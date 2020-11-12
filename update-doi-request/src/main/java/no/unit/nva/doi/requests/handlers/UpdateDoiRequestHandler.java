@@ -6,9 +6,13 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.amazonaws.services.securitytoken.model.Tag;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
@@ -18,22 +22,23 @@ import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
-import nva.commons.handlers.AuthorizedHandler;
+import nva.commons.handlers.AuthorizedApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.JsonUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpdateDoiRequest, Void> {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
-    private static final List<Tag> FUTURE_ACCESS_RIGHTS = null;
 
+    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
     private final String apiScheme;
@@ -60,6 +65,9 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
                                 Context context)
         throws ApiGatewayException {
 
+        String requestInfoJson = attempt(() -> JsonUtils.objectMapper.writeValueAsString(requestInfo)).orElseThrow();
+        logger.info("RequestInfo:\n" + requestInfoJson);
+
         try {
             input.validate();
             UUID publicationIdentifier = getPublicationIdentifier(requestInfo);
@@ -73,8 +81,28 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     @Override
     protected List<Tag> sessionTags(RequestInfo requestInfo) {
-        // TODO: When Roles will have access rights and the policies will demand it we will update this part
-        return FUTURE_ACCESS_RIGHTS;
+
+        List<Tag> accessRightsTags = attempt(requestInfo::getAccessRights)
+            .toOptional()
+            .stream()
+            .flatMap(Collection::stream)
+            .map(ar ->
+                new Tag().withKey(tagKey(ar)).withValue(tagValue(ar)))
+            .collect(Collectors.toList());
+        Tag publisherIdentifierTag = new Tag().withKey("publisherIdentifier")
+            .withValue(requestInfo.getCustomerId().orElse(null));
+
+        ArrayList<Tag> tags = new ArrayList<>(accessRightsTags);
+        tags.add(publisherIdentifierTag);
+        return tags;
+    }
+
+    private String tagValue(String ar) {
+        return ar.toUpperCase(Locale.getDefault());
+    }
+
+    private String tagKey(String ar) {
+        return ar.toLowerCase(Locale.getDefault());
     }
 
     @Override
