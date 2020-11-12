@@ -270,7 +270,7 @@ Resources:
               - sts:TagSession
       Path: /
       Policies:
-        - PolicyName: CuratorReadAccess
+        - PolicyName: ReadAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -289,10 +289,9 @@ Resources:
                     "dynamodb:LeadingKeys":
                       - "${aws:PrincipalTag/publisherIdentifier}"
                   StringEquals:
-                    "aws:PrincipalTag/approve_doi_request": "APPROVE_DOI_REQUEST"
-                    "aws:PrincipalTag/reject_doi_request": "REJECT_DOI_REQUEST"
+                    "aws:PrincipalTag/read_doi_request": "READ_DOI_REQUEST"
 
-        - PolicyName: CuratorWriteAccess
+        - PolicyName: WriteAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
