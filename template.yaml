@@ -289,8 +289,8 @@ Resources:
         #                  #                    "dynamodb:LeadingKeys":
         #                  #                      - "${aws:PrincipalTag/publisherIdentifier}"
                   StringEquals:
-                  "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
-                  "${aws:PrincipalTag/reject_doi_request}" : "REJECT_DOI_REQUEST"
+                    "${aws:PrincipalTag/approve_doi_request}": "APPROVE_DOI_REQUEST"
+                    "${aws:PrincipalTag/reject_doi_request}": "REJECT_DOI_REQUEST"
 
         - PolicyName: CuratorWriteAccess
           PolicyDocument:
