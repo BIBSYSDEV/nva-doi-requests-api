@@ -12,6 +12,8 @@ allprojects {
     repositories {
         jcenter()
         maven { url "https://jitpack.io" }
+        // Repository for running Embedded DynamoDB locally.
+        maven { url "https://s3.eu-central-1.amazonaws.com/dynamodb-local-frankfurt/release" }
     }
 }
 
@@ -85,7 +87,7 @@ subprojects {
                 limit {
                     counter = 'METHOD'
                     value = 'COVEREDRATIO'
-                    minimum = 0.000
+                    minimum = 1.000
 
                 }
             }
@@ -94,7 +96,7 @@ subprojects {
                 limit {
                     counter = 'CLASS'
                     value = 'COVEREDRATIO'
-                    minimum = 0.000
+                    minimum = 1.000
 
                 }
             }

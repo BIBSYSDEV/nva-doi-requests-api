@@ -18,6 +18,7 @@ import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
+import no.unit.nva.doi.requests.util.FakeRequestContext;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.stubs.FakeContext;
 import no.unit.nva.stubs.FakeStsClient;
@@ -37,16 +38,10 @@ public class FindDoiRequestsHandlerTest {
 
     public static final String CREATOR = "creator";
     public static final String ROLE = "role";
-    public static final String AUTHORIZER = "authorizer";
-    public static final String CLAIMS = "claims";
-    public static final String CUSTOM_FEIDE_ID = "custom:feideId";
-    public static final String CUSTOM_CUSTOMER_ID = "custom:customerId";
-    public static final String CUSTOM_APPLICATION_ROLES = "custom:applicationRoles";
-    public static final String JUNIT = "junit";
+
     public static final String CURATOR = "curator";
     public static final String INVALID_ROLE = "invalid_role";
     public static final String EDITOR = "editor";
-    public static final String SAMPLE_CUSTOMER_ID = "http://example.org/publisher/123";
 
     private FindDoiRequestsHandler handler;
     private ByteArrayOutputStream outputStream;
@@ -67,18 +62,11 @@ public class FindDoiRequestsHandlerTest {
         context = new FakeContext();
     }
 
-    private Environment mockEnvironment() {
-        Environment environment = mock(Environment.class);
-        when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
-        when(environment.readEnv(anyString())).thenReturn("*");
-        return environment;
-    }
-
     @Test
     public void handleRequestReturnsStatusOKOnValidCreatorRoleInput() throws Exception {
         factory = prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CREATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR, CREATOR);
         FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
         handler.handleRequest(inputStream, outputStream, context);
 
@@ -91,7 +79,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidUpperCaseCreatorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CREATOR.toUpperCase());
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR.toUpperCase(), CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -103,7 +91,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidCuratorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CURATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CURATOR, CURATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -115,7 +103,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidEditorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(EDITOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(EDITOR, EDITOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -138,7 +126,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusUnauthorizedOnInvalidRoleRequested() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(INVALID_ROLE);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(INVALID_ROLE, CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<Problem> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -150,11 +138,18 @@ public class FindDoiRequestsHandlerTest {
         DynamoDbDoiRequestsServiceFactory factory = prepareMocksWithDatabaseError();
         FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
 
-        InputStream inputStream = createRequestWithRole(CREATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR, CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<Problem> actual = GatewayResponse.fromOutputStream(outputStream);
         assertEquals(HttpStatus.SC_BAD_GATEWAY, actual.getStatusCode());
+    }
+
+    private Environment mockEnvironment() {
+        Environment environment = mock(Environment.class);
+        when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
+        when(environment.readEnv(anyString())).thenReturn("*");
+        return environment;
     }
 
     private DynamoDbDoiRequestsServiceFactory createDefaultFactory() {
@@ -162,11 +157,12 @@ public class FindDoiRequestsHandlerTest {
         return new DynamoDbDoiRequestsServiceFactory(cred -> doiRequestsService);
     }
 
-    private InputStream createRequestWithRole(String creator) throws JsonProcessingException {
+    private InputStream createRequestWithRequestedRoleAndAssignedRoles(String requestedRole, String... assignedRoles)
+        throws JsonProcessingException {
         return new HandlerRequestBuilder<Void>(objectMapper)
             .withHeaders(getRequestHeaders())
-            .withQueryParameters(Map.of(ROLE, creator))
-            .withRequestContext(getRequestContext())
+            .withQueryParameters(Map.of(ROLE, requestedRole))
+            .withRequestContext(FakeRequestContext.requestContext(assignedRoles))
             .build();
     }
 
@@ -202,15 +198,5 @@ public class FindDoiRequestsHandlerTest {
         )).thenThrow(DynamoDBException.class);
         factory = new DynamoDbDoiRequestsServiceFactory(ignored -> doiRequestsService);
         return factory;
-    }
-
-    private Map<String, Object> getRequestContext() {
-        return Map.of(AUTHORIZER, Map.of(
-            CLAIMS, Map.of(
-                CUSTOM_FEIDE_ID, JUNIT,
-                CUSTOM_CUSTOMER_ID, SAMPLE_CUSTOMER_ID,
-                CUSTOM_APPLICATION_ROLES, String.join(",", CREATOR, CURATOR, EDITOR)
-            ))
-        );
     }
 }
