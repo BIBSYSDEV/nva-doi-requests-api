@@ -96,6 +96,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                 .collect(Collectors.toList());
     }
 
+    //TODO : Look at issue NP-1823:Getting doi requests for a user cannot be secured
     @Override
     public List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException {

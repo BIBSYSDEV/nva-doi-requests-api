@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests;
 
 import static no.unit.nva.testutils.TestHeaders.getRequestHeaders;
+import static nva.commons.handlers.AuthorizedApiGatewayHandler.ASSUMED_ROLE_ARN_ENV_VAR;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,7 +19,7 @@ import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
-import no.unit.nva.doi.requests.util.FakeRequestContext;
+import no.unit.nva.doi.requests.util.RequestContextUtils;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.stubs.FakeContext;
 import no.unit.nva.stubs.FakeStsClient;
@@ -42,6 +43,7 @@ public class FindDoiRequestsHandlerTest {
     public static final String CURATOR = "curator";
     public static final String INVALID_ROLE = "invalid_role";
     public static final String EDITOR = "editor";
+    public static final String SOME_ASSUMED_AWS_IAM_ROLE = "SomeAssumedAwsIamRole";
 
     private FindDoiRequestsHandler handler;
     private ByteArrayOutputStream outputStream;
@@ -148,7 +150,7 @@ public class FindDoiRequestsHandlerTest {
     private Environment mockEnvironment() {
         Environment environment = mock(Environment.class);
         when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
-        when(environment.readEnv(anyString())).thenReturn("*");
+        when(environment.readEnv(ASSUMED_ROLE_ARN_ENV_VAR)).thenReturn(SOME_ASSUMED_AWS_IAM_ROLE);
         return environment;
     }
 
@@ -162,7 +164,7 @@ public class FindDoiRequestsHandlerTest {
         return new HandlerRequestBuilder<Void>(objectMapper)
             .withHeaders(getRequestHeaders())
             .withQueryParameters(Map.of(ROLE, requestedRole))
-            .withRequestContext(FakeRequestContext.requestContext(assignedRoles))
+            .withRequestContext(RequestContextUtils.requestContext(assignedRoles))
             .build();
     }
 
