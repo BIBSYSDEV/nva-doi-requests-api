@@ -29,6 +29,7 @@ import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.AuthorizedApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
+import nva.commons.utils.JacocoGenerated;
 import nva.commons.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,11 @@ public class FindDoiRequestsHandler extends AuthorizedApiGatewayHandler<Void, Do
     public static final String ROLES_SEPARATOR = ",";
     private static final DynamoDbDoiRequestsServiceFactory DEFAULT_SERVICE_FACTORY = defaultServiceFactory();
     private final DynamoDbDoiRequestsServiceFactory serviceFactory;
+
+    @JacocoGenerated
+    public FindDoiRequestsHandler() {
+        this(new Environment());
+    }
 
     protected FindDoiRequestsHandler(Environment environment) {
         this(environment, DEFAULT_SERVICE_FACTORY, defaultStsClient());

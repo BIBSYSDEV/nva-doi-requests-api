@@ -380,10 +380,9 @@ Resources:
         Variables:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
+          ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
           INDEX_NAME: !Ref DoiRequestsIndexName
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref DoiRequestsTableName
+      Role: !GetAtt LambdaRole.Arn
       Events:
         GetEvent:
           Type: Api
