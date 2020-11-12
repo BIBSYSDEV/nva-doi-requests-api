@@ -90,7 +90,7 @@ public class UpdateDoiRequestHandler extends AuthorizedApiGatewayHandler<ApiUpda
                 new Tag().withKey(tagKey(ar)).withValue(tagValue(ar)))
             .collect(Collectors.toList());
         Tag publisherIdentifierTag = new Tag().withKey("publisherIdentifier")
-            .withValue(requestInfo.getCustomerId().orElseThrow());
+            .withValue(requestInfo.getCustomerId().orElse(null));
 
         ArrayList<Tag> tags = new ArrayList<>(accessRightsTags);
         tags.add(publisherIdentifierTag);
