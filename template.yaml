@@ -300,6 +300,7 @@ Resources:
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:UpdateItem
+                  - dynamodb:PutItem
                   - dynamodb:Query
                   - dynamodb:BatchGetItem
                   - dynamodb:DescribeTable
