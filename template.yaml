@@ -287,7 +287,7 @@ Resources:
                 Condition:
                   "ForAllValues:StringEquals":
                     "dynamodb:LeadingKeys":
-                      - "${aws:PrincipalTag/publisherIdentifier}"
+                      - "${aws:PrincipalTag/publisherIdentifier}helloworld"
                   StringEquals:
                     "aws:PrincipalTag/approve_doi_request": "APPROVE_DOI_REQUEST"
                     "aws:PrincipalTag/reject_doi_request": "REJECT_DOI_REQUEST"
