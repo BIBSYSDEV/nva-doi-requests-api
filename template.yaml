@@ -285,9 +285,9 @@ Resources:
                 Resource:
                   - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName,"/index/",!Ref DoiRequestsIndexName ] ]
                 Condition:
-                  "ForAllValues:StringEquals":
-                    "dynamodb:LeadingKeys":
-                      - "${aws:PrincipalTag/publisherIdentifier}"
+#                  "ForAllValues:StringEquals":
+                  #                    "dynamodb:LeadingKeys":
+                  #                      - "${aws:PrincipalTag/publisherIdentifier}"
                   StringEquals:
                     "aws:PrincipalTag/read_doi_request": "READ_DOI_REQUEST"
 
