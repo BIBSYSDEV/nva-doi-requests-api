@@ -59,12 +59,12 @@ public class DoiRequestAuthorizedHandlerTemplateTest {
         return allTags;
     }
 
-    private String upperCased(String ar) {
-        return ar.toUpperCase(Locale.getDefault());
+    private String upperCased(String accessRight) {
+        return accessRight.toUpperCase(Locale.getDefault());
     }
 
-    private String lowerCased(String ar) {
-        return ar.toLowerCase(Locale.getDefault());
+    private String lowerCased(String accessRight) {
+        return accessRight.toLowerCase(Locale.getDefault());
     }
 
     private ObjectNode requestContext() {

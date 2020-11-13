@@ -73,15 +73,15 @@ public abstract class DoiRequestAuthorizedHandlerTemplate<I, O> extends Authoriz
             .collect(Collectors.toList());
     }
 
-    private Tag tagAccessRight(String ar) {
-        return createTag(tagKey(ar), tagValue(ar));
+    private Tag tagAccessRight(String accessRight) {
+        return createTag(tagKey(accessRight), tagValue(accessRight));
     }
 
-    private String tagValue(String ar) {
-        return ar.toUpperCase(Locale.getDefault());
+    private String tagValue(String accessRight) {
+        return accessRight.toUpperCase(Locale.getDefault());
     }
 
-    private String tagKey(String ar) {
-        return ar.toLowerCase(Locale.getDefault());
+    private String tagKey(String accessRight) {
+        return accessRight.toLowerCase(Locale.getDefault());
     }
 }
