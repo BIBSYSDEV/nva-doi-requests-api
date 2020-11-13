@@ -187,8 +187,8 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private boolean isAccessDeniedException(Exception exception) {
-        return exception instanceof AmazonDynamoDBException && exception.getMessage()
-            .contains(ACCESS_DENIED_ERROR_MESSAGE);
+        return exception instanceof AmazonDynamoDBException
+            && exception.getMessage().contains(ACCESS_DENIED_ERROR_MESSAGE);
     }
 
     private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
