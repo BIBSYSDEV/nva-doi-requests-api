@@ -33,16 +33,16 @@ public abstract class DoiRequestAuthorizedHandlerTemplate<I, O> extends Authoriz
 
         List<Tag> accessRightsTags = accessRightsToTags(requestInfo);
 
-        Tag publisherIdentifierTag = createTag(PUBLISHER_IDENTIFIER, requestInfo.getCustomerId().orElse(null));
+        String publisherTagValue = requestInfo.getCustomerId().orElse(null);
+        Tag publisherIdentifierTag = createTag(PUBLISHER_IDENTIFIER, publisherTagValue);
 
         ArrayList<Tag> tags = new ArrayList<>(accessRightsTags);
         tags.add(publisherIdentifierTag);
         return tags;
     }
 
-    private Tag createTag(String publisherIdentifier, String s) {
-        return new Tag().withKey(publisherIdentifier)
-            .withValue(s);
+    private Tag createTag(String tagKey, String tagValue) {
+        return new Tag().withKey(tagKey).withValue(tagValue);
     }
 
     private List<Tag> accessRightsToTags(RequestInfo requestInfo) {
