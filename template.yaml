@@ -288,7 +288,7 @@ Resources:
                   "ForAllValues:StringEquals":
                     "dynamodb:LeadingKeys":
                       - "${aws:PrincipalTag/publisherIdentifier}"
-                  StringEquals:
+                  StringEqualsIgnoreCase:
                     "aws:PrincipalTag/read_doi_request": "READ_DOI_REQUEST"
 
         - PolicyName: WriteAccess
@@ -308,7 +308,7 @@ Resources:
                 Resource:
                   - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName ] ]
                 Condition:
-                  StringEquals:
+                  StringEqualsIgnoreCase:
                     "aws:PrincipalTag/approve_doi_request": "APPROVE_DOI_REQUEST"
                     "aws:PrincipalTag/reject_doi_request": "REJECT_DOI_REQUEST"
 
