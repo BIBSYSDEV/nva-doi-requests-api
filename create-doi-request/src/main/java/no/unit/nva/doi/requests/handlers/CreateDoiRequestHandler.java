@@ -1,7 +1,6 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
