@@ -180,14 +180,15 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private <T> ApiGatewayException handleErrorFetchingPublications(Failure<T> fail) {
-        Exception exception = fail.getException();
-        if (exception instanceof AmazonDynamoDBException) {
-            String message = exception.getMessage();
-            if (message.contains(ACCESS_DENIED_ERROR_MESSAGE)) {
-                return new ForbiddenException();
-            }
+        if (isAccessDeniedException(fail.getException())) {
+            return new ForbiddenException();
         }
         return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
+    }
+
+    private boolean isAccessDeniedException(Exception exception) {
+        return exception instanceof AmazonDynamoDBException && exception.getMessage()
+            .contains(ACCESS_DENIED_ERROR_MESSAGE);
     }
 
     private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
