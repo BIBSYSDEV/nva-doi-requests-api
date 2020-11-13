@@ -104,7 +104,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsNotFoundWhenPublicationDoesNotExist() throws IOException {
-        TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
         ApiUpdateDoiRequest updateDoiRequest = createValidApiUpdateDoiRequest();
 

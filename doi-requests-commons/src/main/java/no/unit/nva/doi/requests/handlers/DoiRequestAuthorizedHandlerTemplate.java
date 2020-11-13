@@ -4,16 +4,17 @@ import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 import com.amazonaws.services.securitytoken.model.Tag;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import nva.commons.handlers.AuthorizedApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.StringUtils;
 import org.slf4j.Logger;
 
 public abstract class DoiRequestAuthorizedHandlerTemplate<I, O> extends AuthorizedApiGatewayHandler<I, O> {
@@ -28,17 +29,35 @@ public abstract class DoiRequestAuthorizedHandlerTemplate<I, O> extends Authoriz
         super(iclass, environment, stsClient, logger);
     }
 
+    @JacocoGenerated
+    protected static DynamoDbDoiRequestsServiceFactory defaultServiceFactory() {
+        return new DynamoDbDoiRequestsServiceFactory();
+    }
+
+    @JacocoGenerated
+    protected static AWSSecurityTokenService defaultStsClient() {
+        return AWSSecurityTokenServiceClientBuilder.defaultClient();
+    }
+
     @Override
     protected final List<Tag> sessionTags(RequestInfo requestInfo) {
 
-        List<Tag> accessRightsTags = accessRightsToTags(requestInfo);
+        List<Tag> assumedRoleTags = accessRightsToTags(requestInfo);
 
-        String publisherTagValue = requestInfo.getCustomerId().orElse(null);
-        Tag publisherIdentifierTag = createTag(PUBLISHER_IDENTIFIER, publisherTagValue);
+        Optional<Tag> publisherIdentifierTag = requestInfo
+            .getCustomerId()
+            .flatMap(this::createPublisherTag);
 
-        ArrayList<Tag> tags = new ArrayList<>(accessRightsTags);
-        tags.add(publisherIdentifierTag);
-        return tags;
+        publisherIdentifierTag.ifPresent(assumedRoleTags::add);
+
+        return assumedRoleTags;
+    }
+
+    private Optional<Tag> createPublisherTag(String publisherTagValue) {
+        if (StringUtils.isBlank(publisherTagValue)) {
+            return Optional.empty();
+        }
+        return Optional.of(createTag(PUBLISHER_IDENTIFIER, publisherTagValue));
     }
 
     private Tag createTag(String tagKey, String tagValue) {
@@ -64,15 +83,5 @@ public abstract class DoiRequestAuthorizedHandlerTemplate<I, O> extends Authoriz
 
     private String tagKey(String ar) {
         return ar.toLowerCase(Locale.getDefault());
-    }
-
-    @JacocoGenerated
-    protected static DynamoDbDoiRequestsServiceFactory defaultServiceFactory() {
-        return new DynamoDbDoiRequestsServiceFactory();
-    }
-
-    @JacocoGenerated
-    protected static AWSSecurityTokenService defaultStsClient() {
-        return AWSSecurityTokenServiceClientBuilder.defaultClient();
     }
 }

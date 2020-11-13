@@ -47,7 +47,7 @@ public class DoiRequestAuthorizedHandlerTemplateTest {
 
     private Set<Tag> expectedTags() {
         Set<Tag> accessRightTags = Stream.of(SOME_ACCESS_RIGHT, SOME_OTHER_ACCESS_RIGHT)
-            .map(ar -> new Tag().withKey(lowerCased(ar)).withValue(upperCased(ar)))
+            .map(accessRight -> new Tag().withKey(lowerCased(accessRight)).withValue(upperCased(accessRight)))
             .collect(Collectors.toSet());
 
         Tag publisherTag = new Tag()
