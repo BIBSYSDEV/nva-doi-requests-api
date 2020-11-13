@@ -4,10 +4,7 @@ import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.Tag;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
@@ -18,22 +15,22 @@ import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
-import nva.commons.handlers.AuthorizedHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
+import nva.commons.utils.JsonUtils;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate<ApiUpdateDoiRequest, Void> {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
-    private static final List<Tag> FUTURE_ACCESS_RIGHTS = null;
 
+    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
     private final String apiScheme;
@@ -41,13 +38,13 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
 
     @JacocoGenerated
     public UpdateDoiRequestHandler() {
-        this(defaultEnvironment(), defaultStsClient(), defaultRequestsServiceFactory());
+        this(defaultEnvironment(), defaultStsClient(), DEFAULT_SERVICE_FACTORY);
     }
 
     public UpdateDoiRequestHandler(Environment environment,
                                    AWSSecurityTokenService stsClient,
                                    DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
-        super(ApiUpdateDoiRequest.class, environment, stsClient, initializeLogger());
+        super(ApiUpdateDoiRequest.class, environment, stsClient, logger);
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
         this.doiRequestsServiceFactory = doiRequestsServiceFactory;
@@ -59,6 +56,9 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
                                 STSAssumeRoleSessionCredentialsProvider credentials,
                                 Context context)
         throws ApiGatewayException {
+
+        String requestInfoJson = attempt(() -> JsonUtils.objectMapper.writeValueAsString(requestInfo)).orElseThrow();
+        logger.info("RequestInfo:\n" + requestInfoJson);
 
         try {
             input.validate();
@@ -72,33 +72,13 @@ public class UpdateDoiRequestHandler extends AuthorizedHandler<ApiUpdateDoiReque
     }
 
     @Override
-    protected List<Tag> sessionTags(RequestInfo requestInfo) {
-        // TODO: When Roles will have access rights and the policies will demand it we will update this part
-        return FUTURE_ACCESS_RIGHTS;
-    }
-
-    @Override
     protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, Void output) {
         return HttpStatus.SC_ACCEPTED;
     }
 
     @JacocoGenerated
-    private static DynamoDbDoiRequestsServiceFactory defaultRequestsServiceFactory() {
-        return new DynamoDbDoiRequestsServiceFactory();
-    }
-
-    @JacocoGenerated
     private static Environment defaultEnvironment() {
         return new Environment();
-    }
-
-    @JacocoGenerated
-    private static AWSSecurityTokenService defaultStsClient() {
-        return AWSSecurityTokenServiceClientBuilder.defaultClient();
-    }
-
-    private static Logger initializeLogger() {
-        return LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
     }
 
     private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
