@@ -13,6 +13,7 @@ import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
@@ -45,13 +46,14 @@ import org.slf4j.LoggerFactory;
 public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     public static final String PUBLICATION_ID_HASH_KEY_NAME = "identifier";
-    public static final String DOI_REQUEST_STATUS_DATE = "doiRequestStatusDate";
+
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
     public static final int SINGLE_ITEM = 1;
     public static final String WRONG_OWNER_ERROR =
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
+    public static final String ACCESS_DENIED_ERROR_MESSAGE = "Status Code: 400; Error Code: AccessDeniedException";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Clock clockForTimestamps;
@@ -66,7 +68,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
      * @param table DynamoDB table
      * @param index DynamoDB index
      */
-    protected DynamoDBDoiRequestsService(Table table, Index index) {
+    public DynamoDBDoiRequestsService(Table table, Index index) {
         this.objectMapper = JsonUtils.objectMapper;
         this.publicationsTable = table;
         this.doiRequestsIndex = index;
@@ -136,7 +138,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
-    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws DynamoDBException {
+    private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws ApiGatewayException {
         return attempt(() -> queryByPublisher(publisher))
             .map(this::extractPublications)
             .map(this::keepMostRecentPublications)
@@ -177,8 +179,16 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return doiRequestsIndex.query(querySpec);
     }
 
-    private <T> DynamoDBException handleErrorFetchingPublications(Failure<T> fail) {
+    private <T> ApiGatewayException handleErrorFetchingPublications(Failure<T> fail) {
+        if (isAccessDeniedException(fail.getException())) {
+            return new ForbiddenException();
+        }
         return new DynamoDBException(ERROR_READING_FROM_TABLE, fail.getException());
+    }
+
+    private boolean isAccessDeniedException(Exception exception) {
+        return exception instanceof AmazonDynamoDBException
+            && exception.getMessage().contains(ACCESS_DENIED_ERROR_MESSAGE);
     }
 
     private List<Publication> extractPublications(ItemCollection<QueryOutcome> outcome) {
