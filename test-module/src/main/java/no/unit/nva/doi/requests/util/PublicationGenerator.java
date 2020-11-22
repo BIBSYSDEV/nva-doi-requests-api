@@ -35,9 +35,11 @@ public final class PublicationGenerator {
      * @return publication
      */
     public static Publication getPublicationWithDoiRequest(Clock clock) {
+        Instant now = Instant.now(clock);
         return getPublicationWithoutDoiRequest(clock).copy()
             .withDoiRequest(new DoiRequest.Builder()
-                .withDate(Instant.now(clock))
+                .withCreatedDate(now)
+                .withModifiedDate(now)
                 .withStatus(DoiRequestStatus.REQUESTED)
                 .build()
             )

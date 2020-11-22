@@ -191,7 +191,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private Publication expectedPublicationAfterDoiRequestUpdate(Publication publication) {
         DoiRequest includedDoiRequest = new DoiRequest.Builder()
-            .withDate(mockNow)
+            .withCreatedDate(mockNow)
+            .withModifiedDate(mockNow)
             .withStatus(DoiRequestStatus.REQUESTED)
             .build();
         return publication.copy().withDoiRequest(includedDoiRequest).build();

@@ -207,10 +207,16 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var actualUpdatedPublication = readPublicationDirectlyFromDynamo(publication.getIdentifier());
         var expectedUpdatedPublication = expectedDoiRequestSummary(publication, actualUpdatedPublication);
 
+        syncUninjectableModifiedDates(actualUpdatedPublication, expectedUpdatedPublication);
         assertThat(actualUpdatedPublication, is(equalTo(expectedUpdatedPublication)));
 
         assertThat(response.getHeaders(), hasEntry(HttpHeaders.LOCATION,
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
+    }
+
+    private void syncUninjectableModifiedDates(Publication actualUpdatedPublication,
+                                               Publication expectedUpdatedPublication) {
+        expectedUpdatedPublication.getDoiRequest().setModifiedDate(actualUpdatedPublication.getModifiedDate());
     }
 
     private ApiUpdateDoiRequest createValidApiUpdateDoiRequest() {
@@ -251,7 +257,8 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private Publication expectedDoiRequestSummary(Publication originalPublication,
                                                   Publication updatedPublication) {
         var includedDoiRequest = new DoiRequest.Builder()
-            .withDate(mockNow)
+            .withCreatedDate(mockNow)
+            .withModifiedDate(mockNow)
             .withStatus(DoiRequestStatus.APPROVED)
             .build();
 

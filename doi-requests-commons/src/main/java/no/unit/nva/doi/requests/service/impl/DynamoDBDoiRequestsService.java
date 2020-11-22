@@ -219,9 +219,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private DoiRequest.Builder doiRequestBuilderWithoutMessage() {
+        Instant now = Instant.now(clockForTimestamps);
         return new DoiRequest.Builder()
             .withStatus(DoiRequestStatus.REQUESTED)
-            .withDate(Instant.now(clockForTimestamps));
+            .withCreatedDate(now)
+            .withModifiedDate(now);
     }
 
     private void verifyThatPublicationHasNoPreviousDoiRequest(Publication publication) throws ConflictException {
