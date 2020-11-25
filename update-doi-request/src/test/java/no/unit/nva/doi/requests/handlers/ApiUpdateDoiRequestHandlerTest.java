@@ -205,13 +205,14 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
 
         var actualUpdatedPublication = readPublicationDirectlyFromDynamo(publication.getIdentifier());
-        var expectedUpdatedPublication = expectedDoiRequestSummary(publication, actualUpdatedPublication);
+        var expectedUpdatedPublication = expectedUpdatedPublication(publication, actualUpdatedPublication);
 
         assertThat(actualUpdatedPublication, is(equalTo(expectedUpdatedPublication)));
 
         assertThat(response.getHeaders(), hasEntry(HttpHeaders.LOCATION,
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
     }
+
 
     private ApiUpdateDoiRequest createValidApiUpdateDoiRequest() {
         var updateDoiRequest = new ApiUpdateDoiRequest();
@@ -248,20 +249,36 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return doiRequestsService.fetchDoiRequestByPublicationIdentifier(identifier).orElseThrow();
     }
 
-    private Publication expectedDoiRequestSummary(Publication originalPublication,
-                                                  Publication updatedPublication) {
-        var includedDoiRequest = new DoiRequest.Builder()
-            .withDate(mockNow)
+    private Publication expectedUpdatedPublication(Publication originalPublication,
+                                                   Publication updatedPublication) {
+        //modified dates need to be copied from the actual updated publication because the modifiedDate
+        //cannot be controlled
+
+        DoiRequest expectedDoiRequestWithUnsyncedModifiedDate = new DoiRequest.Builder()
+            .withCreatedDate(mockNow)
             .withStatus(DoiRequestStatus.APPROVED)
             .build();
 
-        return
-            originalPublication
-                .copy()
-                .withDoiRequest(includedDoiRequest)
-                // copy actual modified date because it is set in Publication class by uncontrollable clock.
-                .withModifiedDate(updatedPublication.getModifiedDate())
-                .build();
+        Publication expectedPublicationWithWrongDates = originalPublication
+            .copy()
+            .withDoiRequest(expectedDoiRequestWithUnsyncedModifiedDate)
+            .build();
+
+        return syncUnControllableDates(expectedPublicationWithWrongDates, updatedPublication);
+    }
+
+    // copy actual modified dates because they are set in Publication class by uncontrollable clock.
+    private Publication syncUnControllableDates(Publication expectedPublicationWithWrongDates,
+                                                Publication updatedPublication) {
+
+        DoiRequest correctedDoiRequest = expectedPublicationWithWrongDates
+            .getDoiRequest().copy().withModifiedDate(updatedPublication.getDoiRequest().getModifiedDate())
+            .build();
+
+        return expectedPublicationWithWrongDates.copy()
+            .withModifiedDate(updatedPublication.getModifiedDate())
+            .withDoiRequest(correctedDoiRequest)
+            .build();
     }
 
     private Publication insertPublicationWithDoiRequest(Clock clock)

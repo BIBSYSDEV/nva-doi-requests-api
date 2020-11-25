@@ -387,7 +387,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {
         return new DoiRequest.Builder()
-            .withDate(mockedNow)
+            .withCreatedDate(mockedNow)
+            .withModifiedDate(mockedNow)
             .withMessages(Collections.singletonList(message))
             .withStatus(REQUESTED)
             .build();
