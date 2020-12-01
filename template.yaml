@@ -24,6 +24,10 @@ Globals:
       AllowOrigin: "'*'"
 
 Parameters:
+  HttpScheme:
+    Type: String
+    Description: http or https
+    Default: https
   CognitoAuthorizerArn:
     Type: String
     Description: Reference to Cognito UserPool for the stage
@@ -127,10 +131,82 @@ Resources:
                 responses: { }
                 httpMethod: POST
                 type: AWS_PROXY
+          '/update-doi-request/{publicationIdentifier}':
+            post:
+              summary: Initiate a Update DOI Request process
+              security:
+                - CognitoUserPool: []
+              parameters:
+                - in: path
+                  name: publicationIdentifier
+                  description: Publication Id (uuid)
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/UpdateDoiRequest'
+              responses:
+                '202':
+                  description: Accepted
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '401':
+                  description: Not authenticated
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '403':
+                  description: Not authorized
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '404':
+                  description: Not Found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '502':
+                  description: Bad Gateway
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+              x-amazon-apigateway-integration:
+                uri:
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaUpdateDoiRequestHandler.Arn}/invocations
+                responses: {}
+                httpMethod: POST
+                type: AWS_PROXY
+
         components:
           schemas:
             Publication:
               type: object
+              properties:
+                doiRequestStatus:
+                  type: string
+                doiRequestDate:
+                  type: string
+                  format: date-time
+                publicationIdentifier:
+                  type: string
+                  format: uuid
+                publicationTitle:
+                  type: string
+                publicationCreator:
+                  type: string
             CreateDoiRequest:
               type: object
               properties:
@@ -147,6 +223,19 @@ Resources:
                   type: integer
                 detail:
                   type: string
+            UpdateDoiRequest:
+              type: object
+              properties:
+                doiRequestStatus:
+                  $ref: '#/components/schemas/DoiRequestStatus'
+              description: Initiate a Update DOI request process
+            DoiRequestStatus:
+              description: Enum values for valid doiRequestStatus
+              type: string
+              enum:
+                - REQUESTED
+                - APPROVED
+                - REJECTED
           securitySchemes:
             CognitoUserPool:
               type: apiKey
@@ -157,6 +246,128 @@ Resources:
                 type: cognito_user_pools
                 providerARNs:
                   - !Ref CognitoAuthorizerArn
+
+  AssumedRole:
+    DependsOn: LambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt LambdaRole.Arn
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt LambdaRole.Arn
+            Action:
+              - sts:TagSession
+      Path: /
+      Policies:
+        - PolicyName: ReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:DescribeTable
+                  - sts:AssumeRole
+                  - sts:TagSession
+                Resource:
+                  - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName,"/index/",!Ref DoiRequestsIndexName ] ]
+                Condition:
+                  "ForAllValues:StringEquals":
+                    "dynamodb:LeadingKeys":
+                      - "${aws:PrincipalTag/publisherIdentifier}"
+                  StringEqualsIgnoreCase:
+                    "aws:PrincipalTag/read_doi_request": "READ_DOI_REQUEST"
+
+        - PolicyName: WriteAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:DescribeTable
+                  - sts:AssumeRole
+                  - sts:TagSession
+                Resource:
+                  - !Join [ "",[ "arn:aws:dynamodb",":",!Ref AWS::Region,":",!Ref AWS::AccountId,":","table/",!Ref DoiRequestsTableName ] ]
+                Condition:
+                  StringEqualsIgnoreCase:
+                    "aws:PrincipalTag/approve_doi_request": "APPROVE_DOI_REQUEST"
+                    "aws:PrincipalTag/reject_doi_request": "REJECT_DOI_REQUEST"
+
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaDefaults
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - sts:AssumeRole
+                  - sts:TagSession
+                Resource: "*"
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaDefaults
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - sts:AssumeRole
+                  - sts:TagSession
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:DescribeTable
+                Resource: "*"
   NvaFindDoiRequestsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -168,10 +379,9 @@ Resources:
         Variables:
           ALLOWED_ORIGIN: '*'
           TABLE_NAME: !Ref DoiRequestsTableName
+          ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
           INDEX_NAME: !Ref DoiRequestsIndexName
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref DoiRequestsTableName
+      Role: !GetAtt LambdaRole.Arn
       Events:
         GetEvent:
           Type: Api
@@ -179,6 +389,7 @@ Resources:
             Path: /
             Method: get
             RestApiId: !Ref NvaDoiRequestsApi
+
   NvaCreateDoiRequestHandler:
     Type: AWS::Serverless::Function
     Properties:
@@ -199,6 +410,30 @@ Resources:
           Type: Api
           Properties:
             Path: /
+            Method: post
+            RestApiId: !Ref NvaDoiRequestsApi
+
+  NvaUpdateDoiRequestHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: update-doi-request
+      Handler: no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+          ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
+          API_HOST: !Ref CustomDomain
+          API_SCHEME: !Ref HttpScheme
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /{publicationIdentifier}
             Method: post
             RestApiId: !Ref NvaDoiRequestsApi
   NvaDoiRequestsPathMapping:

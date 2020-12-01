@@ -1,23 +1,39 @@
 package no.unit.nva.doi.requests;
 
 import static no.unit.nva.testutils.TestHeaders.getRequestHeaders;
+import static nva.commons.handlers.AuthorizedApiGatewayHandler.ASSUMED_ROLE_ARN_ENV_VAR;
 import static nva.commons.utils.JsonUtils.objectMapper;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
+import com.amazonaws.services.dynamodbv2.document.Index;
+import com.amazonaws.services.dynamodbv2.document.ItemCollection;
+import com.amazonaws.services.dynamodbv2.document.QueryOutcome;
+import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Map;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
 import no.unit.nva.doi.requests.model.DoiRequestsResponse;
-import no.unit.nva.doi.requests.service.DoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
+import no.unit.nva.doi.requests.util.RequestContextUtils;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.stubs.FakeContext;
+import no.unit.nva.stubs.FakeStsClient;
 import no.unit.nva.testutils.HandlerRequestBuilder;
 import no.unit.nva.testutils.TestHeaders;
 import nva.commons.exceptions.ApiGatewayException;
@@ -28,45 +44,45 @@ import nva.commons.utils.Environment;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 import org.zalando.problem.Problem;
 
 public class FindDoiRequestsHandlerTest {
 
     public static final String CREATOR = "creator";
     public static final String ROLE = "role";
-    public static final String AUTHORIZER = "authorizer";
-    public static final String CLAIMS = "claims";
-    public static final String CUSTOM_FEIDE_ID = "custom:feideId";
-    public static final String CUSTOM_CUSTOMER_ID = "custom:customerId";
-    public static final String CUSTOM_APPLICATION_ROLES = "custom:applicationRoles";
-    public static final String JUNIT = "junit";
+
     public static final String CURATOR = "curator";
     public static final String INVALID_ROLE = "invalid_role";
     public static final String EDITOR = "editor";
-    public static final String SAMPLE_CUSTOMER_ID = "http://example.org/publisher/123";
-    private DoiRequestsService doiRequestsService;
+    public static final String SOME_ASSUMED_AWS_IAM_ROLE = "SomeAssumedAwsIamRole";
+
+    private final AWSSecurityTokenService fakeStsClient = new FakeStsClient();
     private FindDoiRequestsHandler handler;
     private ByteArrayOutputStream outputStream;
     private Context context;
+    private DynamoDbDoiRequestsServiceFactory factory;
 
     /**
      * Set up environment for test.
      */
     @BeforeEach
     public void setUp() {
-        doiRequestsService = mock(DoiRequestsService.class);
-        Environment environment = mock(Environment.class);
-        when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
-        handler = new FindDoiRequestsHandler(doiRequestsService, environment);
+
+        Environment environment = mockEnvironment();
+
+        factory = createDefaultFactory();
+        handler = new FindDoiRequestsHandler(environment, factory, fakeStsClient);
         outputStream = new ByteArrayOutputStream();
-        context = mock(Context.class);
+        context = new FakeContext();
     }
 
     @Test
     public void handleRequestReturnsStatusOKOnValidCreatorRoleInput() throws Exception {
-        prepareMocksWithOkResponse();
+        factory = prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CREATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR, CREATOR);
+        FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -78,7 +94,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidUpperCaseCreatorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CREATOR.toUpperCase());
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR.toUpperCase(), CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -90,7 +106,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidCuratorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(CURATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CURATOR, CURATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -102,7 +118,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusOKOnValidEditorRoleInput() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(EDITOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(EDITOR, EDITOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<DoiRequestsResponse> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -125,7 +141,7 @@ public class FindDoiRequestsHandlerTest {
     public void handleRequestReturnsStatusUnauthorizedOnInvalidRoleRequested() throws Exception {
         prepareMocksWithOkResponse();
 
-        InputStream inputStream = createRequestWithRole(INVALID_ROLE);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(INVALID_ROLE, CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<Problem> actual = GatewayResponse.fromOutputStream(outputStream);
@@ -134,20 +150,46 @@ public class FindDoiRequestsHandlerTest {
 
     @Test
     public void handleRequestReturnsStatusBadGatewayOnServiceError() throws Exception {
-        prepareMocksWithDatabaseError();
+        DynamoDbDoiRequestsServiceFactory factory = prepareMocksWithDatabaseError();
+        FindDoiRequestsHandler handler = new FindDoiRequestsHandler(mockEnvironment(), factory, new FakeStsClient());
 
-        InputStream inputStream = createRequestWithRole(CREATOR);
+        InputStream inputStream = createRequestWithRequestedRoleAndAssignedRoles(CREATOR, CREATOR);
         handler.handleRequest(inputStream, outputStream, context);
 
         GatewayResponse<Problem> actual = GatewayResponse.fromOutputStream(outputStream);
         assertEquals(HttpStatus.SC_BAD_GATEWAY, actual.getStatusCode());
     }
 
-    private InputStream createRequestWithRole(String creator) throws JsonProcessingException {
+    @Test
+    public void handleRequestReturnsStatusForbiddenWhenDoiServiceReceivesAccessDeniedError()
+        throws IOException {
+        DynamoDbDoiRequestsServiceFactory factory = prepareMocksWithAccessDeniedError();
+
+        InputStream request = createRequestWithRequestedRoleAndAssignedRoles(CREATOR, CREATOR);
+        handler = new FindDoiRequestsHandler(mockEnvironment(), factory, fakeStsClient);
+        handler.handleRequest(request, outputStream, context);
+        GatewayResponse<Problem> response = GatewayResponse.fromOutputStream(outputStream);
+        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_FORBIDDEN)));
+    }
+
+    private Environment mockEnvironment() {
+        Environment environment = mock(Environment.class);
+        when(environment.readEnv(ApiGatewayHandler.ALLOWED_ORIGIN_ENV)).thenReturn("*");
+        when(environment.readEnv(ASSUMED_ROLE_ARN_ENV_VAR)).thenReturn(SOME_ASSUMED_AWS_IAM_ROLE);
+        return environment;
+    }
+
+    private DynamoDbDoiRequestsServiceFactory createDefaultFactory() {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
+        return new DynamoDbDoiRequestsServiceFactory(cred -> doiRequestsService);
+    }
+
+    private InputStream createRequestWithRequestedRoleAndAssignedRoles(String requestedRole, String... assignedRoles)
+        throws JsonProcessingException {
         return new HandlerRequestBuilder<Void>(objectMapper)
             .withHeaders(getRequestHeaders())
-            .withQueryParameters(Map.of(ROLE, creator))
-            .withRequestContext(getRequestContext())
+            .withQueryParameters(Map.of(ROLE, requestedRole))
+            .withRequestContext(RequestContextUtils.requestContext(assignedRoles))
             .build();
     }
 
@@ -167,25 +209,47 @@ public class FindDoiRequestsHandlerTest {
         );
     }
 
-    private void prepareMocksWithOkResponse() throws ApiGatewayException {
+    private DynamoDbDoiRequestsServiceFactory prepareMocksWithAccessDeniedError() {
+        var mockTable = mock(Table.class);
+        Index mockIndex = indexThrowingAwsAccessDeniedException();
+        when(mockTable.getIndex(anyString())).thenReturn(mockIndex);
+
+        return createFactoryWithServiceDenyingAccess(mockTable, mockIndex);
+    }
+
+    private DynamoDbDoiRequestsServiceFactory createFactoryWithServiceDenyingAccess(Table dynamoTable,
+                                                                                    Index mockIndex) {
+        DynamoDBDoiRequestsService requestsService = new DynamoDBDoiRequestsService(dynamoTable, mockIndex);
+        return new DynamoDbDoiRequestsServiceFactory(ignoredCred -> requestsService);
+    }
+
+    private Index indexThrowingAwsAccessDeniedException() {
+        var mockIndex = mock(Index.class);
+        when(mockIndex.query(any(QuerySpec.class))).thenAnswer(throwNewAwsDynamoAccessDeniedException());
+        return mockIndex;
+    }
+
+    private Answer<ItemCollection<QueryOutcome>> throwNewAwsDynamoAccessDeniedException() {
+        return invocation -> {
+            throw new AmazonDynamoDBException(DynamoDBDoiRequestsService.ACCESS_DENIED_ERROR_MESSAGE);
+        };
+    }
+
+    private DynamoDbDoiRequestsServiceFactory prepareMocksWithOkResponse() throws ApiGatewayException {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
         when(doiRequestsService.findDoiRequestsByStatusAndOwner(
             any(URI.class), any(DoiRequestStatus.class), anyString()
         )).thenReturn(new DoiRequestsResponse());
+        factory = new DynamoDbDoiRequestsServiceFactory(ignored -> doiRequestsService);
+        return factory;
     }
 
-    private void prepareMocksWithDatabaseError() throws ApiGatewayException {
+    private DynamoDbDoiRequestsServiceFactory prepareMocksWithDatabaseError() throws ApiGatewayException {
+        DynamoDBDoiRequestsService doiRequestsService = mock(DynamoDBDoiRequestsService.class);
         when(doiRequestsService.findDoiRequestsByStatusAndOwner(
             any(URI.class), any(DoiRequestStatus.class), anyString()
         )).thenThrow(DynamoDBException.class);
-    }
-
-    private Map<String, Object> getRequestContext() {
-        return Map.of(AUTHORIZER, Map.of(
-            CLAIMS, Map.of(
-                CUSTOM_FEIDE_ID, JUNIT,
-                CUSTOM_CUSTOMER_ID, SAMPLE_CUSTOMER_ID,
-                CUSTOM_APPLICATION_ROLES, String.join(",", CREATOR, CURATOR, EDITOR)
-            ))
-        );
+        factory = new DynamoDbDoiRequestsServiceFactory(ignored -> doiRequestsService);
+        return factory;
     }
 }

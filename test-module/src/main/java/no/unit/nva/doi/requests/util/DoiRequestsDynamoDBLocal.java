@@ -35,15 +35,11 @@ import org.junit.jupiter.api.AfterEach;
 
 public class DoiRequestsDynamoDBLocal {
 
-    public static final String CREATED_DATE = "createdDate";
-    public static final String ENTITY_DESCRIPTION = "entityDescription";
-    public static final String STATUS = "status";
-    public static final String OWNER = "owner";
-
     public static final String NVA_RESOURCES_TABLE_NAME = "nva_resources";
     public static final String BY_DOI_REQUEST_INDEX_NAME = "ByDoiRequest";
     public static final Pattern REMOVE_STARTING_AND_ENDING_QUOTES = Pattern.compile("^\"(.*)\"$");
     protected AmazonDynamoDB client;
+
 
     protected Table getTable(String tableName) {
         return new DynamoDB(client).getTable(tableName);
@@ -97,6 +93,7 @@ public class DoiRequestsDynamoDBLocal {
 
         return objectMapper.readValue(item.toJSON(), Publication.class);
     }
+
 
     private <T> String serializeForQueryValue(T serializable) throws JsonProcessingException {
         return removeDoubleQuotesFromString(serializable);

@@ -1,6 +1,8 @@
 package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials;
 import static nva.commons.utils.JsonUtils.objectMapper;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
@@ -8,7 +10,6 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.mockito.Mockito.mock;
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
@@ -67,7 +68,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void init() {
         initializeDatabase();
         Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
-        doiRequestsService = new DynamoDBDoiRequestsService(client, objectMapper, environment, mockClock);
+
+        doiRequestsService = doiRequestServiceWithLocalDbClient(mockClock);
         this.handler = new CreateDoiRequestHandler(environment, doiRequestsService);
     }
 
@@ -158,6 +160,10 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(problem.getDetail(), containsString(DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
     }
 
+    private DoiRequestsService doiRequestServiceWithLocalDbClient(Clock mockClock) {
+        return serviceWithCustomClientWithoutCredentials(client, environment, mockClock).getService(EMPTY_CREDENTIALS);
+    }
+
     private String validUsername(Publication publication) {
         return publication.getOwner();
     }
@@ -185,7 +191,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private Publication expectedPublicationAfterDoiRequestUpdate(Publication publication) {
         DoiRequest includedDoiRequest = new DoiRequest.Builder()
-            .withDate(mockNow)
+            .withCreatedDate(mockNow)
+            .withModifiedDate(mockNow)
             .withStatus(DoiRequestStatus.REQUESTED)
             .build();
         return publication.copy().withDoiRequest(includedDoiRequest).build();
@@ -193,7 +200,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private Publication readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
         throws JsonProcessingException, NotFoundException {
-        return doiRequestsService.fetchDoiRequestByPublicationId(
+        return doiRequestsService.fetchDoiRequestByPublicationIdentifier(
             UUID.fromString(doiRequest.getPublicationId()))
             .orElseThrow();
     }

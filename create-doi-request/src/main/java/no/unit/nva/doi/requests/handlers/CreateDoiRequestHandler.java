@@ -1,17 +1,15 @@
 package no.unit.nva.doi.requests.handlers;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.serviceWithDefaultClientWithoutCredentials;
 import com.amazonaws.services.lambda.runtime.Context;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
-import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.ApiGatewayHandler;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
-import nva.commons.utils.JsonUtils;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,25 +25,12 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
 
     @JacocoGenerated
     private CreateDoiRequestHandler(Environment environment) {
-        this(environment, defaultDoiRequestService(environment));
+        this(environment, serviceWithDefaultClientWithoutCredentials(environment));
     }
 
     public CreateDoiRequestHandler(Environment environment, DoiRequestsService doiRequestsService) {
         super(CreateDoiRequest.class, environment, defaultLogger());
         this.doiRequestService = doiRequestsService;
-    }
-
-    @JacocoGenerated
-    private static DynamoDBDoiRequestsService defaultDoiRequestService(Environment environment) {
-        return new DynamoDBDoiRequestsService(
-            AmazonDynamoDBClientBuilder.defaultClient(),
-            JsonUtils.objectMapper,
-            environment
-        );
-    }
-
-    private static Logger defaultLogger() {
-        return LoggerFactory.getLogger(CreateDoiRequestHandler.class);
     }
 
     @Override
@@ -60,5 +45,9 @@ public class CreateDoiRequestHandler extends ApiGatewayHandler<CreateDoiRequest,
     @Override
     protected Integer getSuccessStatusCode(CreateDoiRequest input, Void output) {
         return HttpStatus.SC_CREATED;
+    }
+
+    private static Logger defaultLogger() {
+        return LoggerFactory.getLogger(CreateDoiRequestHandler.class);
     }
 }

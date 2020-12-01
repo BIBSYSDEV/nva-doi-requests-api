@@ -22,12 +22,13 @@ public interface DoiRequestsService {
     List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
         throws ApiGatewayException;
 
-    Optional<Publication> fetchDoiRequestByPublicationId(UUID publicationId)
+    Optional<Publication> fetchDoiRequestByPublicationIdentifier(UUID publicationIdentifier)
         throws JsonProcessingException, NotFoundException;
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ConflictException, NotFoundException, ForbiddenException;
 
-    void updateDoiRequest(UUID publicationID, DoiRequestStatus requestedStatusChange, String requestedByUsername)
+    void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
+                          String requestedByUsername)
         throws NotFoundException, ForbiddenException;
 }

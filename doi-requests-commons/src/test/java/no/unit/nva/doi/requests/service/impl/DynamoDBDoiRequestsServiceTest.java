@@ -1,6 +1,7 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithDoiRequest;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithoutDoiRequest;
@@ -13,7 +14,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,15 +21,18 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Period;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
@@ -76,14 +79,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         initializeDatabase();
         environment = mockEnvironment();
         clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
-        service = new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, environment, clock);
-    }
-
-    @Test
-    public void constructorCreatesInstanceOnValidInput() {
-        DynamoDBDoiRequestsService dynamoDBDoiRequestsService =
-            new DynamoDBDoiRequestsService(client, JsonUtils.objectMapper, mockEnvironment());
-        assertNotNull(dynamoDBDoiRequestsService);
+        service = DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment,
+            clock)
+            .getService(EMPTY_CREDENTIALS);
     }
 
     @Test
@@ -107,6 +105,24 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void findDoiRequestsByStatusAndOwnerReturnsLatestPublicationForEachPublicationIdentifier() throws Exception {
+        Publication publication = getPublicationWithDoiRequest();
+        Publication laterPublication = updatedPublication(publication);
+        Publication latestPublication = updatedPublication(laterPublication);
+
+        insertPublication(publication);
+        insertPublication(laterPublication);
+        insertPublication(latestPublication);
+
+        List<Publication> publications = service.findDoiRequestsByStatusAndOwner(
+            PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
+        assertEquals(1, publications.size());
+
+        Publication actualPublication = publications.get(0);
+        assertThat(actualPublication, is(equalTo(latestPublication)));
+    }
+
+    @Test
     public void findDoiRequestsByStatusAndOwnerReturnsAllButOneResultsWhenUserOwnsAllButOneDoiRequests()
         throws Exception {
         insertPublication(getPublicationWithDoiRequest());
@@ -127,8 +143,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Index index = mock(Index.class);
         when(index.query(anyString(), any(), any(RangeKeyCondition.class))).thenThrow(RuntimeException.class);
 
-        DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(
-            JsonUtils.objectMapper, getTable(), index);
+        DynamoDBDoiRequestsService failingService = new DynamoDBDoiRequestsService(getTable(), index);
         DynamoDBException exception = assertThrows(DynamoDBException.class,
             () -> failingService.findDoiRequestsByStatus(PublicationGenerator.PUBLISHER_ID, REQUESTED));
 
@@ -140,7 +155,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         throws JsonProcessingException, NotFoundException {
         Publication publication = getPublicationWithDoiRequest();
         insertPublication(publication);
-        Optional<Publication> result = service.fetchDoiRequestByPublicationId(publication.getIdentifier());
+        Optional<Publication> result = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
     }
 
@@ -152,7 +167,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         var table = mock(Table.class);
         var index = indexThrowingException(expectedMessage);
 
-        service = new DynamoDBDoiRequestsService(JsonUtils.objectMapper, table, index);
+        service = new DynamoDBDoiRequestsService(table, index);
         Executable indexSearchFailure = () -> service.findDoiRequestsByStatus(
             publication.getPublisher().getId(), REQUESTED);
         DynamoDBException exception = assertThrows(DynamoDBException.class, indexSearchFailure);
@@ -170,7 +185,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.createDoiRequest(createDoiRequestWithMessage(publication), publication.getOwner());
         Publication actualDoiRequestSummary = service
-            .fetchDoiRequestByPublicationId(publication.getIdentifier())
+            .fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
 
         assertThat(actualDoiRequestSummary, is(equalTo(expectedDoiRequestSummary)));
@@ -245,15 +260,16 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void createDoiRequestThrowsRuntimeExceptionOnSerializationError() throws JsonProcessingException {
+    public void createDoiRequestThrowsRuntimeExceptionOnSerializationError()
+        throws JsonProcessingException, NoSuchFieldException, IllegalAccessException {
 
         final String exceptionMessage = "This is the exception message";
         ObjectMapper objectMapper = spy(JsonUtils.objectMapper);
         when(objectMapper.writeValueAsString(any(Publication.class)))
             .thenThrow(new RuntimeException(exceptionMessage));
 
-        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
-            new DynamoDBDoiRequestsService(client, objectMapper, environment);
+        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper = createServiceWithFailingJsonObjectMapper(
+            objectMapper);
 
         Publication publication = getPublicationWithoutDoiRequest();
         insertPublication(publication);
@@ -267,7 +283,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserisAuthorized()
+    public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
         throws NotFoundException, ForbiddenException, IOException {
 
         Publication publication = getPublicationWithDoiRequest(clock);
@@ -276,13 +292,31 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
         service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
 
-        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationId(publication.getIdentifier())
+        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
         DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
 
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
 
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
+    }
+
+    private Publication updatedPublication(Publication publication) {
+        return publication.copy()
+            .withModifiedDate(publication.getModifiedDate().plus(Period.ofDays(1)))
+            .build();
+    }
+
+    private DynamoDBDoiRequestsService createServiceWithFailingJsonObjectMapper(ObjectMapper objectMapper)
+        throws NoSuchFieldException, IllegalAccessException {
+        DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper =
+            DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment)
+                .getService(EMPTY_CREDENTIALS);
+
+        Field field = DynamoDBDoiRequestsService.class.getDeclaredField("objectMapper");
+        field.setAccessible(true);
+        field.set(serviceWithFailingJsonObjectMapper, objectMapper);
+        return serviceWithFailingJsonObjectMapper;
     }
 
     private void assertThatModifiedDateIsUpdated(Publication originalPublication, Publication updatedPublication) {
@@ -293,7 +327,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Index indexThrowingException(String expectedMessage) {
         Index index = mock(Index.class);
-        when(index.query(anyString(), any(), any(RangeKeyCondition.class))).then(
+        when(index.query(any(QuerySpec.class))).then(
             invocation -> {
                 throw new RuntimeException(expectedMessage);
             });
@@ -353,7 +387,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {
         return new DoiRequest.Builder()
-            .withDate(mockedNow)
+            .withCreatedDate(mockedNow)
+            .withModifiedDate(mockedNow)
             .withMessages(Collections.singletonList(message))
             .withStatus(REQUESTED)
             .build();
