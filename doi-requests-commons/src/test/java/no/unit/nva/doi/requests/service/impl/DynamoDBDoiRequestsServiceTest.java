@@ -206,6 +206,27 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCratedAndModifiedDate()
+        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        Clock realClock = Clock.systemDefaultZone();
+        Publication publicationWithoutDoiRequest = getPublicationWithoutDoiRequest(realClock);
+        insertPublication(publicationWithoutDoiRequest);
+
+        var doiRequestWithoutMessage = createDoiRequestWithoutMessage(publicationWithoutDoiRequest);
+        service.createDoiRequest(doiRequestWithoutMessage, publicationWithoutDoiRequest.getOwner());
+
+        Publication actualPublication = getPublicationDirectlyFromTable(publicationWithoutDoiRequest.getIdentifier());
+
+        Instant actualPublicationModifiedDate = actualPublication.getModifiedDate();
+
+        Instant expectedModifiedDate = actualPublication.getDoiRequest().getModifiedDate();
+        Instant doiRequestCreatedDate = actualPublication.getDoiRequest().getCreatedDate();
+
+        assertThat(actualPublicationModifiedDate, is(equalTo(expectedModifiedDate)));
+        assertThat(actualPublicationModifiedDate, is(equalTo(doiRequestCreatedDate)));
+    }
+
+    @Test
     public void createDoiRequestAddsMessageToPublicationsDoiRequest()
         throws IOException, ConflictException, NotFoundException, ForbiddenException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
