@@ -124,7 +124,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
         var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
         publication.setDoiRequest(newDoiRequestEntry);
-
+        publication.setModifiedDate(newDoiRequestEntry.getModifiedDate());
         putItem(publication);
     }
 
