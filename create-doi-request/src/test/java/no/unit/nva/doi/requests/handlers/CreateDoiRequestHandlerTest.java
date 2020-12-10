@@ -10,6 +10,7 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
@@ -19,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
@@ -50,11 +50,13 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_USERNAME = "invalidUsername";
     public static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     private final Environment environment;
-    private final Instant mockNow = Instant.now();
+    private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
+    private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private final String publicationsTableName;
     private CreateDoiRequestHandler handler;
     private Context context;
     private DoiRequestsService doiRequestsService;
+    private Clock mockClock;
 
     public CreateDoiRequestHandlerTest() {
 
@@ -67,7 +69,8 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @BeforeEach
     public void init() {
         initializeDatabase();
-        Clock mockClock = Clock.fixed(mockNow, ZoneId.systemDefault());
+        mockClock = mock(Clock.class);
+        when(mockClock.instant()).thenReturn(publicationCreationTime).thenReturn(publicationModificationTime);
 
         doiRequestsService = doiRequestServiceWithLocalDbClient(mockClock);
         this.handler = new CreateDoiRequestHandler(environment, doiRequestsService);
@@ -100,7 +103,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void handleRequestReturnsCreatedIfPublicationIdIsNotEmpty() throws IOException {
-        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest();
+        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(mockClock);
         insertPublication(publicationsTableName, publication);
         CreateDoiRequest doiRequest = createDoiRequest(publication);
 
@@ -191,11 +194,14 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private Publication expectedPublicationAfterDoiRequestUpdate(Publication publication) {
         DoiRequest includedDoiRequest = new DoiRequest.Builder()
-            .withCreatedDate(mockNow)
-            .withModifiedDate(mockNow)
+            .withCreatedDate(publicationModificationTime)
+            .withModifiedDate(publicationModificationTime)
             .withStatus(DoiRequestStatus.REQUESTED)
             .build();
-        return publication.copy().withDoiRequest(includedDoiRequest).build();
+        return publication.copy()
+            .withCreatedDate(publicationCreationTime)
+            .withModifiedDate(publicationModificationTime)
+            .withDoiRequest(includedDoiRequest).build();
     }
 
     private Publication readPublicationDirectlyFromDynamo(CreateDoiRequest doiRequest)
@@ -206,7 +212,7 @@ public class CreateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     }
 
     private Publication insertPublicationWithoutDoiRequest() throws com.fasterxml.jackson.core.JsonProcessingException {
-        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest();
+        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(mockClock);
         insertPublication(publicationsTableName, publication);
         return publication;
     }
