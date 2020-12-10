@@ -206,7 +206,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCratedAndModifiedDate()
+    public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCreatedAndModifiedDate()
         throws IOException, ConflictException, NotFoundException, ForbiddenException {
         Publication publicationWithoutDoiRequest = getPublicationWithoutDoiRequest(clock);
         insertPublication(publicationWithoutDoiRequest);
