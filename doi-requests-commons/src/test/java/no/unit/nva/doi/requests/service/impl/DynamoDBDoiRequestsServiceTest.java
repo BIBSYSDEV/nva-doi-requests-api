@@ -217,7 +217,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Publication actualPublication = getPublicationDirectlyFromTable(publicationWithoutDoiRequest.getIdentifier());
 
         Instant actualPublicationModifiedDate = actualPublication.getModifiedDate();
-
         Instant expectedModifiedDate = actualPublication.getDoiRequest().getModifiedDate();
         Instant doiRequestCreatedDate = actualPublication.getDoiRequest().getCreatedDate();
 
