@@ -151,7 +151,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private List<Publication> filterNotPublishedPublications(List<Publication> list) {
         return list
             .stream()
-            .filter(pub->PublicationStatus.PUBLISHED.equals(pub.getStatus()))
+            .filter(pub -> PublicationStatus.PUBLISHED.equals(pub.getStatus()))
             .collect(Collectors.toList());
     }
 
