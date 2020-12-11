@@ -9,6 +9,7 @@ import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.EntityDescription;
 import no.unit.nva.model.Organization;
 import no.unit.nva.model.Publication;
+import no.unit.nva.model.PublicationStatus;
 
 public final class PublicationGenerator {
 
@@ -58,6 +59,7 @@ public final class PublicationGenerator {
             .withIdentifier(UUID.randomUUID())
             .withCreatedDate(now)
             .withModifiedDate(now)
+            .withStatus(PublicationStatus.PUBLISHED)
             .withOwner(OWNER)
             .withPublisher(new Organization.Builder()
                 .withId(PUBLISHER_ID)
