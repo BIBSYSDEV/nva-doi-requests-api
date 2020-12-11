@@ -45,6 +45,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.model.PublicationStatus;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -105,6 +106,18 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
+    public void findDoiRequestsByStatusReturnsDoiRequestsOfOnlyPublishedPublications() throws Exception {
+        Publication publication = getPublicationWithDoiRequest()
+            .copy().withStatus(PublicationStatus.DRAFT).build();
+        insertPublication(publication);
+
+        List<Publication> publications = service.findDoiRequestsByStatus(
+            PublicationGenerator.PUBLISHER_ID, REQUESTED);
+
+        assertThat(publications, is(empty()));
+    }
+
+    @Test
     public void findDoiRequestsByStatusAndOwnerReturnsLatestPublicationForEachPublicationIdentifier() throws Exception {
         Publication publication = getPublicationWithDoiRequest();
         Publication laterPublication = updatedPublication(publication);
@@ -158,6 +171,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Optional<Publication> result = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
     }
+
 
     @Test
     public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
