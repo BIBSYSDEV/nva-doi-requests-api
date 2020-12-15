@@ -20,9 +20,17 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: TBA
+    - name: install jq
       run:  sudo apt-get install -y jq
-   # - LATEST_CODACY_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"
+
+    - name: install jq
+      run: sudo apt-get install -y jq
+
+    - name: setup codacy version
+      run:  echo 'LATEST_CODACY_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)' >> $GITHUB_ENV
+
+    - name: echo codacy version
+      run:  echo $LATEST_CODACY_VERSION
 
 
     - name: Cache Gradle packages
