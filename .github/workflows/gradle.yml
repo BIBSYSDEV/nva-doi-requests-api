@@ -30,7 +30,6 @@ jobs:
     - name: echo codacy version
       run:  echo $LATEST_CODACY_VERSION
 
-
     - name: Cache Gradle packages
       uses: actions/cache@v2
       with:
@@ -45,7 +44,6 @@ jobs:
       env:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
-        ls build/reports/jacoco/jacocoRootReport/
         curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
         chmod +x codacy-coverage-reporter
         ./codacy-coverage-reporter report -l Java -r $(pwd)/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
