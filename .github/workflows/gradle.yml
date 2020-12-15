@@ -44,7 +44,7 @@ jobs:
       run: |
         curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
         chmod +x codacy-coverage-reporter
-        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/test/jacocoTestReport.xm
+#        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/test/jacocoTestReport.xm
 
 
 
