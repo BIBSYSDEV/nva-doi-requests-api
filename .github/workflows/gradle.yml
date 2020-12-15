@@ -45,12 +45,7 @@ jobs:
       env:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
-        ls -R build/reports/jacoco
-        cd ..
-        pwd
-        ls /home/runner/work/nva-doi-requests-api/
+        ls build/reports/jacoco/jacocoRootReport/
         curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
         chmod +x codacy-coverage-reporter
-        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
-
-
+        ./codacy-coverage-reporter report -l Java -r $(pwd)/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
