@@ -39,7 +39,7 @@ jobs:
         restore-keys: ${{ runner.os }}-gradle
 
     - name: Build with Gradle
-      run: ./gradlew build jacocoTestReport
+      run: ./gradlew build
 
     - name: Codacy report
       env:
@@ -48,6 +48,6 @@ jobs:
         cd ..
         curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
         chmod +x codacy-coverage-reporter
-        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/test/jacocoTestReport.xml
+        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
 
 
