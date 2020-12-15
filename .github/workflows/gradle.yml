@@ -46,8 +46,13 @@ jobs:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
         cd ..
+        pwd
+        ls /home/runner/work/nva-doi-requests-api/build/reports/jacoco/
         curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
         chmod +x codacy-coverage-reporter
         ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
 
 
+
+
+reports/jacoco/jacocoRootReport/jacocoRootReport:
