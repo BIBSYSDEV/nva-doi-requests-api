@@ -5,7 +5,6 @@ import static no.unit.nva.doi.requests.contants.DatabaseConstants.DOI_REQUEST_IN
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_HASH_KEY;
 import static no.unit.nva.doi.requests.contants.DatabaseConstants.TABLE_SORT_KEY;
 import static nva.commons.utils.JsonUtils.objectMapper;
-
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -39,7 +38,6 @@ public class DoiRequestsDynamoDBLocal {
     public static final String BY_DOI_REQUEST_INDEX_NAME = "ByDoiRequest";
     public static final Pattern REMOVE_STARTING_AND_ENDING_QUOTES = Pattern.compile("^\"(.*)\"$");
     protected AmazonDynamoDB client;
-
 
     protected Table getTable(String tableName) {
         return new DynamoDB(client).getTable(tableName);
@@ -90,10 +88,8 @@ public class DoiRequestsDynamoDBLocal {
             TABLE_HASH_KEY, publicationId.toString(),
             TABLE_SORT_KEY, modifiedDateString
         );
-
         return objectMapper.readValue(item.toJSON(), Publication.class);
     }
-
 
     private <T> String serializeForQueryValue(T serializable) throws JsonProcessingException {
         return removeDoubleQuotesFromString(serializable);

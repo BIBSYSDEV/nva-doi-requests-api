@@ -9,6 +9,7 @@ import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.EntityDescription;
 import no.unit.nva.model.Organization;
 import no.unit.nva.model.Publication;
+import no.unit.nva.model.PublicationStatus;
 
 public final class PublicationGenerator {
 
@@ -29,8 +30,9 @@ public final class PublicationGenerator {
     }
 
     /**
-     * Generates a Publication with sufficient data to map to DoiRequestSummary, including setting DOIRequest
-     * creation timestamp and last modified timestamp for the publication from the provided clock.
+     * Generates a Publication with sufficient data to map to DoiRequestSummary, including setting DOIRequest creation
+     * timestamp and last modified timestamp for the publication from the provided clock.
+     *
      * @param clock Clock for easy testing.
      * @return publication
      */
@@ -48,12 +50,16 @@ public final class PublicationGenerator {
 
     /**
      * Create publication without DoiRequest.
+     *
      * @return publication
      */
     public static Publication getPublicationWithoutDoiRequest(Clock clock) {
+        Instant now = clock.instant();
         return new Publication.Builder()
             .withIdentifier(UUID.randomUUID())
-            .withModifiedDate(Instant.now(clock))
+            .withCreatedDate(now)
+            .withModifiedDate(now)
+            .withStatus(PublicationStatus.PUBLISHED)
             .withOwner(OWNER)
             .withPublisher(new Organization.Builder()
                 .withId(PUBLISHER_ID)
@@ -64,13 +70,5 @@ public final class PublicationGenerator {
                 .build()
             )
             .build();
-    }
-
-    /**
-     * Publication without Doi request.
-     * @return a publication
-     */
-    public static Publication getPublicationWithoutDoiRequest() {
-        return getPublicationWithoutDoiRequest(Clock.systemDefaultZone());
     }
 }

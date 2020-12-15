@@ -33,6 +33,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.model.PublicationStatus;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
@@ -122,9 +123,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
-        var newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
+        DoiRequest newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
         publication.setDoiRequest(newDoiRequestEntry);
-
+        publication.setModifiedDate(newDoiRequestEntry.getModifiedDate());
         putItem(publication);
     }
 
@@ -139,10 +140,19 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws ApiGatewayException {
+
         return attempt(() -> queryByPublisher(publisher))
             .map(this::extractPublications)
+            .map(this::filterNotPublishedPublications)
             .map(this::keepMostRecentPublications)
             .orElseThrow(this::handleErrorFetchingPublications);
+    }
+
+    private List<Publication> filterNotPublishedPublications(List<Publication> list) {
+        return list
+            .stream()
+            .filter(pub -> PublicationStatus.PUBLISHED.equals(pub.getStatus()))
+            .collect(Collectors.toList());
     }
 
     private boolean hasDoiRequestStatus(Publication publication, DoiRequestStatus desiredStatus) {

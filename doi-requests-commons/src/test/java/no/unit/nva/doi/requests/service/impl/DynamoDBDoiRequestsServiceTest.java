@@ -8,11 +8,11 @@ import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationW
 import static no.unit.nva.model.DoiRequestStatus.APPROVED;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,7 +21,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.RangeKeyCondition;
 import com.amazonaws.services.dynamodbv2.document.Table;
@@ -33,7 +32,6 @@ import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
-import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +45,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.model.PublicationStatus;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -65,7 +64,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_USERNAME = "invalidUsername";
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
-    private final Instant mockedNow = Instant.now();
+    private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
+    private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
     private Environment environment;
     private Clock clock;
@@ -78,7 +78,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public void setUp() {
         initializeDatabase();
         environment = mockEnvironment();
-        clock = Clock.fixed(mockedNow, ZoneId.systemDefault());
+        clock = mock(Clock.class);
+        when(clock.instant()).thenReturn(publicationCreationTime).thenReturn(publicationModificationTime);
         service = DynamoDbDoiRequestsServiceFactory.serviceWithCustomClientWithoutCredentials(client, environment,
             clock)
             .getService(EMPTY_CREDENTIALS);
@@ -102,6 +103,18 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
             PublicationGenerator.PUBLISHER_ID, REQUESTED, PublicationGenerator.OWNER);
 
         assertEquals(3, publications.size());
+    }
+
+    @Test
+    public void findDoiRequestsByStatusReturnsDoiRequestsOfOnlyPublishedPublications() throws Exception {
+        Publication publication = getPublicationWithDoiRequest()
+            .copy().withStatus(PublicationStatus.DRAFT).build();
+        insertPublication(publication);
+
+        List<Publication> publications = service.findDoiRequestsByStatus(
+            PublicationGenerator.PUBLISHER_ID, REQUESTED);
+
+        assertThat(publications, is(empty()));
     }
 
     @Test
@@ -159,6 +172,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(result.isPresent(), is(true));
     }
 
+
     @Test
     public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
         Publication publication = getPublicationWithDoiRequest();
@@ -178,7 +192,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void createDoiRequestAddsDoiRequestToPublication()
         throws JsonProcessingException, ConflictException, NotFoundException, ForbiddenException {
-        Publication publication = getPublicationWithoutDoiRequest();
+        Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
         Publication expectedDoiRequestSummary = expectedDoiRequestSummary(publication);
@@ -203,6 +217,25 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DoiRequest doiRequest = getPublicationDirectlyFromTable(publication.getIdentifier()).getDoiRequest();
 
         assertThat(doiRequest.getMessages(), is(empty()));
+    }
+
+    @Test
+    public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCreatedAndModifiedDate()
+        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        Publication publicationWithoutDoiRequest = getPublicationWithoutDoiRequest(clock);
+        insertPublication(publicationWithoutDoiRequest);
+
+        var doiRequestWithoutMessage = createDoiRequestWithoutMessage(publicationWithoutDoiRequest);
+        service.createDoiRequest(doiRequestWithoutMessage, publicationWithoutDoiRequest.getOwner());
+
+        Publication actualPublication = getPublicationDirectlyFromTable(publicationWithoutDoiRequest.getIdentifier());
+
+        Instant actualPublicationModifiedDate = actualPublication.getModifiedDate();
+        Instant expectedModifiedDate = actualPublication.getDoiRequest().getModifiedDate();
+        Instant doiRequestCreatedDate = actualPublication.getDoiRequest().getCreatedDate();
+
+        assertThat(actualPublicationModifiedDate, is(equalTo(expectedModifiedDate)));
+        assertThat(actualPublicationModifiedDate, is(equalTo(doiRequestCreatedDate)));
     }
 
     @Test
@@ -271,7 +304,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DynamoDBDoiRequestsService serviceWithFailingJsonObjectMapper = createServiceWithFailingJsonObjectMapper(
             objectMapper);
 
-        Publication publication = getPublicationWithoutDoiRequest();
+        Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
         Executable action = () -> serviceWithFailingJsonObjectMapper.createDoiRequest(
@@ -350,7 +383,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         DoiRequestMessage expectedMessage = new DoiRequestMessage();
         expectedMessage.setAuthor(publication.getOwner());
         expectedMessage.setText(DEFAULT_MESSAGE);
-        expectedMessage.setTimestamp(mockedNow);
+        expectedMessage.setTimestamp(publicationModificationTime);
         return expectedMessage;
     }
 
@@ -375,20 +408,23 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private DoiRequestMessage createDoiRequestMessage(Publication publication) {
         return new DoiRequestMessage.Builder()
-            .withTimestamp(mockedNow)
+            .withTimestamp(publicationModificationTime)
             .withText(DEFAULT_MESSAGE)
             .withAuthor(publication.getOwner())
             .build();
     }
 
     private Publication createPublicationWithUpdatedDoiRequest(Publication publication, DoiRequest expectedDoiRequest) {
-        return publication.copy().withDoiRequest(expectedDoiRequest).build();
+        return publication.copy()
+            .withCreatedDate(publicationCreationTime)
+            .withModifiedDate(expectedDoiRequest.getModifiedDate())
+            .withDoiRequest(expectedDoiRequest).build();
     }
 
     private DoiRequest createDoiRequestObject(DoiRequestMessage message) {
         return new DoiRequest.Builder()
-            .withCreatedDate(mockedNow)
-            .withModifiedDate(mockedNow)
+            .withCreatedDate(publicationModificationTime)
+            .withModifiedDate(publicationModificationTime)
             .withMessages(Collections.singletonList(message))
             .withStatus(REQUESTED)
             .build();
@@ -405,6 +441,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     private Publication getPublicationDirectlyFromTable(UUID publicationId) throws IOException {
         String tableName = environment.readEnv(PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
-        return super.getPublication(tableName, publicationId, mockedNow);
+        return super.getPublication(tableName, publicationId, publicationModificationTime);
     }
 }
