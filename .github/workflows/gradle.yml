@@ -41,6 +41,4 @@ jobs:
       env:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
-        pwd
-        ls -R .
         java -jar codacy-coverage-reporter-assembly.jar report -l Java -r $(pwd)/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
