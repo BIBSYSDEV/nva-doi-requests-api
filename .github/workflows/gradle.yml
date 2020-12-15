@@ -53,5 +53,3 @@ jobs:
         ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
 
 
-
-
