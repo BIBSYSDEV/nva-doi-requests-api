@@ -39,15 +39,12 @@ jobs:
 
     - name: Build with Gradle
       run: ./gradlew build
-        #curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
-        #chmod +x codacy-coverage-reporter
-      #./codacy-coverage-reporter report -l Java -r build/reports/jacoco/test/jacocoTestReport.xm
 
-
-    - name: Do stuff
+    - name: Send report to codacy
       run: |
-          echo "Hello\n"
-          echo "World\n"
+        curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_CODACY_VERSION}/codacy-coverage-reporter-linux"
+        chmod +x codacy-coverage-reporter
+        ./codacy-coverage-reporter report -l Java -r build/reports/jacoco/test/jacocoTestReport.xm
 
 
 
