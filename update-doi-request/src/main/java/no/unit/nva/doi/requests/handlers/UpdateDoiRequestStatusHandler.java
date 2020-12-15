@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.UUID;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
-import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
+import no.unit.nva.doi.requests.model.UpdateDoiRequestStatusRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
@@ -24,34 +24,34 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestStatusHandler extends DoiRequestAuthorizedHandlerTemplate<UpdateDoiRequestStatusRequest, Void> {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
-    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestStatusHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
     private final String apiScheme;
     private final String apiHost;
 
     @JacocoGenerated
-    public UpdateDoiRequestHandler() {
+    public UpdateDoiRequestStatusHandler() {
         this(defaultEnvironment(), defaultStsClient(), DEFAULT_SERVICE_FACTORY);
     }
 
-    public UpdateDoiRequestHandler(Environment environment,
-                                   AWSSecurityTokenService stsClient,
-                                   DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
-        super(ApiUpdateDoiRequest.class, environment, stsClient, logger);
+    public UpdateDoiRequestStatusHandler(Environment environment,
+                                         AWSSecurityTokenService stsClient,
+                                         DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
+        super(UpdateDoiRequestStatusRequest.class, environment, stsClient, logger);
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
         this.doiRequestsServiceFactory = doiRequestsServiceFactory;
     }
 
     @Override
-    protected Void processInput(ApiUpdateDoiRequest input,
+    protected Void processInput(UpdateDoiRequestStatusRequest input,
                                 RequestInfo requestInfo,
                                 STSAssumeRoleSessionCredentialsProvider credentials,
                                 Context context)
@@ -72,7 +72,7 @@ public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate
     }
 
     @Override
-    protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, Void output) {
+    protected Integer getSuccessStatusCode(UpdateDoiRequestStatusRequest input, Void output) {
         return HttpStatus.SC_ACCEPTED;
     }
 
@@ -81,7 +81,7 @@ public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate
         return new Environment();
     }
 
-    private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
+    private void updateDoiRequestStatus(UpdateDoiRequestStatusRequest input, RequestInfo requestInfo,
                                         STSAssumeRoleSessionCredentialsProvider credentials, UUID publicationIdentifier)
         throws ForbiddenException, NotFoundException {
         var doiRequestStatus = input.getDoiRequestStatus();

@@ -7,14 +7,14 @@ import no.unit.nva.doi.requests.exception.BadRequestException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
-class ApiUpdateDoiRequestTest {
+class UpdateDoiRequestStatusRequestTest {
 
     @Test
     void validateThrowsExceptionWhenDoiRequestStatusIsMissing() {
-        var updateDoiRequest = new ApiUpdateDoiRequest();
+        var updateDoiRequest = new UpdateDoiRequestStatusRequest();
 
         Executable action = updateDoiRequest::validate;
         BadRequestException exception = assertThrows(BadRequestException.class, action);
-        assertThat(exception.getMessage(), containsString(ApiUpdateDoiRequest.NO_CHANGE_REQUESTED_ERROR));
+        assertThat(exception.getMessage(), containsString(UpdateDoiRequestStatusRequest.NO_CHANGE_REQUESTED_ERROR));
     }
 }

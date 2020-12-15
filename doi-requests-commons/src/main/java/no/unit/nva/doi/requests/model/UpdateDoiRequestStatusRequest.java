@@ -4,7 +4,7 @@ import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.model.DoiRequestStatus;
 import nva.commons.utils.JacocoGenerated;
 
-public class ApiUpdateDoiRequest {
+public class UpdateDoiRequestStatusRequest {
 
     public static final String NO_CHANGE_REQUESTED_ERROR = "You must request changes to do";
     private DoiRequestStatus doiRequestStatus;
