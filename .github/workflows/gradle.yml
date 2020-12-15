@@ -45,7 +45,7 @@ jobs:
       env:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
-        ls build/*
+        ls -R build/reports/jacoco
         cd ..
         pwd
         ls /home/runner/work/nva-doi-requests-api/
