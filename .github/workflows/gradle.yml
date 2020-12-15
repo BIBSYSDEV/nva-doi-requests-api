@@ -24,7 +24,9 @@ jobs:
       run:  sudo apt-get install -y jq
 
     - name: setup codacy version
-      run:  echo "LATEST_CODACY_VERSION=$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)" >> $GITHUB_ENV
+      run:  curl -LSs "$(curl -LSs https://api.github.com/repos/codacy/codacy-coverage-reporter/releases/latest | jq -r '.assets | map({name, browser_download_url} | select(.name | endswith(".jar"))) | .[0].browser_download_url')" -o codacy-coverage-reporter-assembly.jar
+
+
 
     - name: echo codacy version
       run:  echo $LATEST_CODACY_VERSION
@@ -39,3 +41,8 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew build
 
+    - name: Codacy report
+      env:
+        CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
+      run: |
+        java -jar codacy-coverage-reporter-assembly.jar report -l Java -r $(pwd)/build/reports/jacoco/test/jacocoTestReport.xml
