@@ -23,9 +23,6 @@ jobs:
     - name: install jq
       run:  sudo apt-get install -y jq
 
-    - name: install jq
-      run: sudo apt-get install -y jq
-
     - name: setup codacy version
       run:  echo "LATEST_CODACY_VERSION=$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)" >> $GITHUB_ENV
 
