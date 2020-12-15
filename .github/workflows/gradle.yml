@@ -45,7 +45,7 @@ jobs:
       env:
         CODACY_PROJECT_TOKEN : ${{ secrets.CODACY_PROJECT_TOKEN }}
       run: |
-        ls
+        ls build/*
         cd ..
         pwd
         ls /home/runner/work/nva-doi-requests-api/
