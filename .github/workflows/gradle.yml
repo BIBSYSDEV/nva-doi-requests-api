@@ -20,6 +20,11 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: TBA
+      run:  sudo apt-get install -y jq
+   # - LATEST_CODACY_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"
+
+
     - name: Cache Gradle packages
       uses: actions/cache@v2
       with:
