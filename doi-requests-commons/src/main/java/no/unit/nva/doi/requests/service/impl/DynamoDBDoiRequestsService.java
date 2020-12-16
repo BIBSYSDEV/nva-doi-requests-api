@@ -136,7 +136,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                  String requestedByUsername, List<AccessRight> userAccessRights)
         throws NotFoundException, ForbiddenException {
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        authorizeChange(requestedStatusChange,userAccessRights,requestedByUsername);
+        authorizeChange(requestedStatusChange, userAccessRights, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
     }
@@ -145,13 +145,14 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                  List<AccessRight> userAccessRights,
                                  String username)
         throws ForbiddenException {
-        if(doiRequestApprovalIsUnauthorized(requestedStatusChange, userAccessRights)){
-            logger.warn(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST+username);
-                throw new ForbiddenException();
+        if (doiRequestApprovalIsUnauthorized(requestedStatusChange, userAccessRights)) {
+            logger.warn(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST + username);
+            throw new ForbiddenException();
         }
     }
 
-    private boolean doiRequestApprovalIsUnauthorized(DoiRequestStatus requestedStatusChange, List<AccessRight> userAccessRights) {
+    private boolean doiRequestApprovalIsUnauthorized(DoiRequestStatus requestedStatusChange,
+                                                     List<AccessRight> userAccessRights) {
         return userTriesToApproveDoiRequest(requestedStatusChange) && userCannotApproveDoiRequests(userAccessRights);
     }
 
