@@ -2,9 +2,11 @@ package no.unit.nva.doi.requests.handlers;
 
 import static java.util.Objects.isNull;
 import static no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest.INVALID_PUBLICATION_ID_ERROR;
+import static no.unit.nva.doi.requests.handlers.DoiRequestAuthorizedHandlerTemplate.defaultStsClient;
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.WRONG_OWNER_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLISHER_ID;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
@@ -29,8 +31,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -72,7 +72,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     public static final String COMMA_SEPARATOR = ",";
     public static final String EMPTY_STRING = "";
-    public static final String UNPRIVILGED_USER = "notCurator@unit.no";
+    public static final String UNPRIVILEGED_USER = "notCurator@unit.no";
     private final Environment environment;
     private final String publicationsTableName;
     private final Context context;
@@ -138,7 +138,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication.getIdentifier().toString(),
-            publication.getOwner(),APPROVE_DOI_REQUEST);
+            publication.getOwner(), APPROVE_DOI_REQUEST);
 
         final Problem details = response.getBodyObject(Problem.class);
 
@@ -168,17 +168,19 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsForbiddenWhenUserRequestsApprovalForDoiRequestButHasNoRight()
         throws IOException {
+        TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
         Publication publication = insertPublicationWithDoiRequest(
             getFixedClockWithDefaultTimeZone(mockOneHourBefore));
         ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication, UNPRIVILGED_USER,
+        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication, UNPRIVILEGED_USER,
             READ_DOI_REQUEST);
 
-        Problem problem= response.getBodyObject(Problem.class);
-        assertThat(response.getStatusCode(),is(HttpURLConnection.HTTP_FORBIDDEN));
-        assertThat(problem.getDetail(),is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
+        Problem problem = response.getBodyObject(Problem.class);
+        assertThat(response.getStatusCode(), is(HttpURLConnection.HTTP_FORBIDDEN));
+        assertThat(problem.getDetail(), is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
+        assertThatLogsContainReasonForForbiddenMessage(appender, UNPRIVILEGED_USER);
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem,UNPRIVILEGED_USER,PUBLISHER_ID);
     }
-
 
     @Test
     public void handleRequestReturnsOKWhenUserRequestsApprovalForDoiRequesAndHasApprovalRight()
@@ -186,12 +188,10 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         Publication publication = insertPublicationWithDoiRequest(
             getFixedClockWithDefaultTimeZone(mockOneHourBefore));
         ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        GatewayResponse<Void> response = sendRequest(updateDoiRequest, publication, UNPRIVILGED_USER,
+        GatewayResponse<Void> response = sendRequest(updateDoiRequest, publication, UNPRIVILEGED_USER,
             APPROVE_DOI_REQUEST);
 
-
-        assertThat(response.getStatusCode(),is(HttpURLConnection.HTTP_ACCEPTED));
-
+        assertThat(response.getStatusCode(), is(HttpURLConnection.HTTP_ACCEPTED));
     }
 
     @Test
@@ -257,9 +257,11 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(errorMessage, not(containsString(publicationOwner)));
     }
 
-    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, Publication publication) {
-        String expectedErrorMessage = String.format(WRONG_OWNER_ERROR, INVALID_USERNAME, publication.getOwner());
-        assertThat(appender.getMessages(), containsString(expectedErrorMessage));
+    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, String username) {
+
+        assertThat(appender.getMessages(), containsString(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST));
+        assertThat(appender.getMessages(), containsString(username));
+
     }
 
     private String validUsername(Publication publication) {
@@ -327,7 +329,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                                                String username,
                                                AccessRight... accessRights)
         throws IOException {
-        return sendRequest(doiRequest, publication.getIdentifier().toString(), username,accessRights);
+        return sendRequest(doiRequest, publication.getIdentifier().toString(), username, accessRights);
     }
 
     private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest,

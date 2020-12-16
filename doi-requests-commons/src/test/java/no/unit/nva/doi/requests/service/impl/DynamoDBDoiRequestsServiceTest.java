@@ -174,7 +174,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(result.isPresent(), is(true));
     }
 
-
     @Test
     public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
         Publication publication = getPublicationWithDoiRequest();
@@ -325,7 +324,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publication);
         assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
 
-        service.updateDoiRequest(publication.getIdentifier(),APPROVED , publication.getOwner(), APPROVE_ACCESS_RIGHT);
+        service.updateDoiRequest(publication.getIdentifier(), APPROVED, publication.getOwner(), APPROVE_ACCESS_RIGHT);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
