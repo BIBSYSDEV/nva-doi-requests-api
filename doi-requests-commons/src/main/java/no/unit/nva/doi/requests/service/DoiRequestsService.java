@@ -8,6 +8,7 @@ import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
@@ -29,6 +30,6 @@ public interface DoiRequestsService {
         throws ConflictException, NotFoundException, ForbiddenException;
 
     void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
-                          String requestedByUsername)
+                          String requestedByUsername,List<AccessRight> userAccessRights)
         throws NotFoundException, ForbiddenException;
 }

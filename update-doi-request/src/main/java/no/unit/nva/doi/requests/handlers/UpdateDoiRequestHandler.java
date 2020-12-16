@@ -5,13 +5,16 @@ import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
 import no.unit.nva.doi.requests.userdetails.UserDetails;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -86,8 +89,16 @@ public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate
         throws ForbiddenException, NotFoundException {
         var doiRequestStatus = input.getDoiRequestStatus();
         String username = getUserName(requestInfo);
+        List<AccessRight> accessRights = extractAccessRights(requestInfo);
         DynamoDBDoiRequestsService doiRequestService = doiRequestsServiceFactory.getService(credentials);
-        doiRequestService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username);
+        doiRequestService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username, accessRights);
+    }
+
+    private List<AccessRight> extractAccessRights(RequestInfo requestInfo) {
+        return requestInfo.getAccessRights()
+            .stream()
+            .map(AccessRight::fromString)
+            .collect(Collectors.toList());
     }
 
     private void updateContentLocationHeader(UUID publicationIdentifier) {

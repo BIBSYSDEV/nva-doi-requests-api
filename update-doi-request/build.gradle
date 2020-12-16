@@ -10,6 +10,12 @@ dependencies {
     testImplementation(project(":test-module")) {
         because("it contains the library for the local DynamoDb")
     }
+
+
+
+    testImplementation group:'com.github.BIBSYSDEV.nva-user-access-service', name:'user-access-internal-model', version:'0.2.4'
+    testImplementation group:'com.github.BIBSYSDEV.nva-user-access-service', name:'user-access-errors', version:'0.2.4'
+
 }
 // necessary tasks for making localDynamoDb to work
 configurations.testImplementation.canBeResolved = true
