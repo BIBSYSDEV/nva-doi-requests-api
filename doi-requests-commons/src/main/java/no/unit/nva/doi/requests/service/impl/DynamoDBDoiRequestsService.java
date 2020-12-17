@@ -34,6 +34,7 @@ import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
@@ -55,6 +56,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
     public static final String ACCESS_DENIED_ERROR_MESSAGE = "Status Code: 400; Error Code: AccessDeniedException";
+    public static final String USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST = "User not allowed to approve a DOI request: ";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Clock clockForTimestamps;
@@ -131,12 +133,35 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     @Override
     public void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
-                                 String requestedByUsername)
+                                 String requestedByUsername, List<AccessRight> userAccessRights)
         throws NotFoundException, ForbiddenException {
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        validateUsername(publication, requestedByUsername);
+        authorizeChange(requestedStatusChange, userAccessRights, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
         putItem(publication);
+    }
+
+    private void authorizeChange(DoiRequestStatus requestedStatusChange,
+                                 List<AccessRight> userAccessRights,
+                                 String username)
+        throws ForbiddenException {
+        if (doiRequestApprovalIsUnauthorized(requestedStatusChange, userAccessRights)) {
+            logger.warn(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST + username);
+            throw new ForbiddenException();
+        }
+    }
+
+    private boolean doiRequestApprovalIsUnauthorized(DoiRequestStatus requestedStatusChange,
+                                                     List<AccessRight> userAccessRights) {
+        return userTriesToApproveDoiRequest(requestedStatusChange) && userCannotApproveDoiRequests(userAccessRights);
+    }
+
+    private boolean userCannotApproveDoiRequests(List<AccessRight> userAccessRights) {
+        return !userAccessRights.contains(AccessRight.APPROVE_DOI_REQUEST);
+    }
+
+    private boolean userTriesToApproveDoiRequest(DoiRequestStatus requestedStatusChange) {
+        return DoiRequestStatus.APPROVED.equals(requestedStatusChange);
     }
 
     private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws ApiGatewayException {

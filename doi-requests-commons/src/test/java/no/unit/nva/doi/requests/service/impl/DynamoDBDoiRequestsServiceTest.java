@@ -46,6 +46,7 @@ import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -64,6 +65,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_USERNAME = "invalidUsername";
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
+    public static final List<AccessRight> APPROVE_ACCESS_RIGHT = List.of(AccessRight.APPROVE_DOI_REQUEST);
     private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
     private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
@@ -171,7 +173,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Optional<Publication> result = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier());
         assertThat(result.isPresent(), is(true));
     }
-
 
     @Test
     public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
@@ -323,7 +324,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         insertPublication(publication);
         assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
 
-        service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
+        service.updateDoiRequest(publication.getIdentifier(), APPROVED, publication.getOwner(), APPROVE_ACCESS_RIGHT);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
