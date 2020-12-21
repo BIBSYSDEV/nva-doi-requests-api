@@ -361,7 +361,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     }
 
     @Test
-    public void updateDoThrowsBadRequestExceptionWhenPublicationDoesNotContainDoiRequest()
+    public void updateDoiThrowsBadRequestExceptionWhenPublicationDoesNotContainDoiRequest()
         throws JsonProcessingException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);

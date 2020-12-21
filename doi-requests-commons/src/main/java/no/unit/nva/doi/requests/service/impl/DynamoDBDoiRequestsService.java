@@ -157,6 +157,33 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
+    /**
+     * Adds a message.
+     * @param publicationIdentifier the publication identifier
+     * @param message the message.
+     * @param userId the user id.
+     * @throws ApiGatewayException
+     */
+    public void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException {
+        Instant now = clockForTimestamps.instant();
+        Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
+        List<DoiRequestMessage> messages = Optional.ofNullable(publication.getDoiRequest().getMessages())
+            .orElse(new ArrayList<>());
+        DoiRequestMessage doiRequestMessage = new DoiRequestMessage.Builder()
+            .withAuthor(userId)
+            .withText(message)
+            .withTimestamp(now)
+            .build();
+        messages.add(doiRequestMessage);
+        DoiRequest updatedDoiRequest = publication.getDoiRequest().copy()
+            .withMessages(messages)
+            .withModifiedDate(now)
+            .build();
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(now);
+        putItem(publication);
+    }
+
     private DoiRequest updateDoiRequest(Publication publication, ApiUpdateDoiRequest apiUpdateDoiRequest,
                                         String requestedByUsername) throws BadRequestException {
         Instant currentTime = clockForTimestamps.instant();
@@ -174,8 +201,6 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         publication.setDoiRequest(updatedDoiRequest);
         publication.setModifiedDate(updatedDoiRequest.getModifiedDate());
     }
-
-
 
     private Optional<DoiRequestMessage> createDoiRequestMessage(ApiUpdateDoiRequest apiUpdateDoiRequest,
                                                                 String requestedByUsername, Instant now) {

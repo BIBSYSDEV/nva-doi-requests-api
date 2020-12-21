@@ -39,7 +39,7 @@ subprojects {
     }
 
     dependencies {
-        testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: '0.1.15'
+        testImplementation group: 'com.github.BIBSYSDEV', name: 'nva-testutils', version: 'b2883bb1ff286ac02f840230fb3e34c74eb7022c'
         testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
         testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.2.4'
         testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: project.ext.junit5Version

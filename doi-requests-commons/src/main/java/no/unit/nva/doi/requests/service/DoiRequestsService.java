@@ -15,7 +15,6 @@ import nva.commons.exceptions.commonexceptions.NotFoundException;
 
 public interface DoiRequestsService {
 
-
     List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status) throws ApiGatewayException;
 
     List<Publication> findDoiRequestsByStatusAndOwner(URI publisher, DoiRequestStatus status, String owner)
@@ -28,6 +27,8 @@ public interface DoiRequestsService {
         throws ApiGatewayException;
 
     void updateDoiRequest(UUID publicationIdentifier, ApiUpdateDoiRequest requestedStatusChange,
-                          String requestedByUsername,List<AccessRight> userAccessRights)
+                          String requestedByUsername, List<AccessRight> userAccessRights)
         throws ApiGatewayException;
+
+    void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException;
 }
