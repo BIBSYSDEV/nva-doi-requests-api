@@ -47,6 +47,7 @@ import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
+import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -192,7 +193,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestAddsDoiRequestToPublication()
-        throws JsonProcessingException, ConflictException, NotFoundException, ForbiddenException {
+        throws JsonProcessingException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -208,7 +209,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestWithoutMessageDoesNotCreateEmptyMessage()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -222,7 +223,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCreatedAndModifiedDate()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publicationWithoutDoiRequest = getPublicationWithoutDoiRequest(clock);
         insertPublication(publicationWithoutDoiRequest);
 
@@ -241,7 +242,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestAddsMessageToPublicationsDoiRequest()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -318,7 +319,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
-        throws NotFoundException, ForbiddenException, IOException {
+        throws ApiGatewayException, IOException {
 
         Publication publication = getPublicationWithDoiRequest(clock);
         insertPublication(publication);

@@ -2,20 +2,21 @@ package no.unit.nva.doi.requests.handlers;
 
 import static java.util.Objects.isNull;
 import static no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest.INVALID_PUBLICATION_ID_ERROR;
-import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
+import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestStatusHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLISHER_ID;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_HOST_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.FAKE_API_SCHEME_ENV;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static no.unit.nva.model.DoiRequestStatus.APPROVED;
+import static no.unit.nva.model.DoiRequestStatus.REJECTED;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
 import static no.unit.nva.useraccessmanagement.dao.AccessRight.APPROVE_DOI_REQUEST;
 import static no.unit.nva.useraccessmanagement.dao.AccessRight.READ_DOI_REQUEST;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.REJECT_DOI_REQUEST;
 import static nva.commons.utils.JsonUtils.objectMapper;
-import static nva.commons.utils.attempt.Try.attempt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.core.Is.is;
@@ -34,7 +35,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -71,11 +71,11 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         + "://"
         + FAKE_API_HOST_ENV
         + "/publication/";
-    private static final String INVALID_USERNAME = "invalidUsername";
-    private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     public static final String COMMA_SEPARATOR = ",";
     public static final String EMPTY_STRING = "";
     public static final String NOT_THE_PUBLICATION_OWNER = "notCurator@unit.no";
+    private static final String INVALID_USERNAME = "invalidUsername";
+    private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
     private final Environment environment;
     private final String publicationsTableName;
     private final Context context;
@@ -83,7 +83,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private final Instant mockOneHourBefore = mockNow.minus(1, ChronoUnit.HOURS);
     private final FakeStsClient stsClient;
     private DynamoDBDoiRequestsService doiRequestsService;
-    private UpdateDoiRequestHandler handler;
+    private UpdateDoiRequestStatusHandler handler;
 
     public ApiUpdateDoiRequestHandlerTest() {
         environment = mockEnvironment();
@@ -100,12 +100,12 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory = DynamoDbDoiRequestsServiceFactory
             .serviceWithCustomClientWithoutCredentials(client, environment, mockClock);
         doiRequestsService = doiRequestsServiceFactory.getService(EMPTY_CREDENTIALS);
-        handler = new UpdateDoiRequestHandler(environment, stsClient, doiRequestsServiceFactory);
+        handler = new UpdateDoiRequestStatusHandler(environment, stsClient, doiRequestsServiceFactory);
     }
 
     @Test
     public void handleRequestReturnsBadRequestWhenPublicationIdIsInvalid() throws IOException {
-        var updateDoiRequest = createApproveDoiRequest();
+        var updateDoiRequest = createUpdateDoiRequest(APPROVED);
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest,
             INVALID_PUBLICATION_IDENTIFIER, USERNAME_NOT_IMPORTANT);
@@ -120,7 +120,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsNotFoundWhenPublicationDoesNotExist() throws IOException {
         var notExistingPublicationIdentifier = UUID.randomUUID().toString();
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(APPROVED);
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, notExistingPublicationIdentifier,
             USERNAME_NOT_IMPORTANT);
@@ -138,7 +138,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         var publication = insertPublicationWithoutDoiRequest(
             getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(APPROVED);
 
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication.getIdentifier().toString(),
             publication.getOwner(), APPROVE_DOI_REQUEST);
@@ -171,70 +171,75 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void handleRequestReturnsForbiddenWhenUserRequestsApprovalForDoiRequestButHasNoRight()
         throws IOException {
-        TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
-        Publication publication = insertPublicationWithDoiRequest(
-            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER,
-            READ_DOI_REQUEST);
+        final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
 
+        GatewayResponse<Problem> response = userSendsDoiRequestUpdate(APPROVED, READ_DOI_REQUEST);
+        Problem problem = response.getBodyObject(Problem.class);
+
+        assertThat(response.getStatusCode(), is(HttpURLConnection.HTTP_FORBIDDEN));
+        assertThat(problem.getDetail(), is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
+
+        assertThatLogsContainReasonForForbiddenMessage(appender,
+            USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST
+        );
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem);
+    }
+
+    @Test
+    public void handleRequestReturnsForbiddenWhenUserRequestsRejectionForDoiRequestButHasNoRight()
+        throws IOException {
+        final TestAppender appender = LogUtils.getTestingAppender(DynamoDBDoiRequestsService.class);
+
+        GatewayResponse<Problem> response = userSendsDoiRequestUpdate(REJECTED, READ_DOI_REQUEST);
         Problem problem = response.getBodyObject(Problem.class);
         assertThat(response.getStatusCode(), is(HttpURLConnection.HTTP_FORBIDDEN));
         assertThat(problem.getDetail(), is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
-        assertThatLogsContainReasonForForbiddenMessage(appender, NOT_THE_PUBLICATION_OWNER);
-        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem, NOT_THE_PUBLICATION_OWNER, PUBLISHER_ID);
+
+        assertThatLogsContainReasonForForbiddenMessage(appender,
+            USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST
+        );
+
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem);
     }
 
     @Test
     public void handleRequestDoesNotChangeDoiRequestStatusWhenUserRequestsApprovalForDoiRequestButHasNoRight()
         throws IOException, NotFoundException {
-        Publication publication = insertPublicationWithDoiRequest(
-            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER, READ_DOI_REQUEST);
+        userTriesToUpdateDoiRequestStatus(APPROVED, READ_DOI_REQUEST, REQUESTED);
+    }
 
-        DoiRequest doiRequest = doiRequestsService.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
-            .map(Publication::getDoiRequest)
-            .orElseThrow();
-
-        assertThat(doiRequest.getStatus(), is(equalTo(REQUESTED)));
+    @Test
+    public void handleRequestDoesNotChangeDoiRequestStatusWhenUserRequestsRejectionForDoiRequestButHasNoRight()
+        throws IOException, NotFoundException {
+        userTriesToUpdateDoiRequestStatus(REJECTED, READ_DOI_REQUEST, REQUESTED);
     }
 
     @Test
     public void handleRequestReturnsAcceptedWhenUserRequestsApprovalForDoiRequestAndHasApprovalRight()
         throws IOException {
-        Publication publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockOneHourBefore));
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        GatewayResponse<Void> response = sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER,
-            APPROVE_DOI_REQUEST);
+        handleRequestReturnsAcceptedWhenUserRequestsDoiRequestUpdateAndHasTheRight(APPROVED, APPROVE_DOI_REQUEST);
+    }
 
-        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_ACCEPTED)));
+    @Test
+    public void handleRequestReturnsAcceptedWhenUserRequestsRejectionForDoiRequestAndHasRejectionRight()
+        throws IOException {
+        handleRequestReturnsAcceptedWhenUserRequestsDoiRequestUpdateAndHasTheRight(REJECTED, REJECT_DOI_REQUEST);
     }
 
     @Test
     public void handleRequestUpdatesDoiRequestStatusWhenUserRequestsApprovalForDoiRequestAndHasApprovalRight()
         throws IOException, NotFoundException {
-        Publication publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockOneHourBefore));
-
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
-        sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER, APPROVE_DOI_REQUEST);
-
-        DoiRequest actualDoiRequest = doiRequestsService.fetchDoiRequestByPublicationIdentifier(
-            publication.getIdentifier())
-            .map(Publication::getDoiRequest)
-            .orElseThrow();
-
-        assertThat(actualDoiRequest.getStatus(), is(equalTo(APPROVED)));
+        userTriesToUpdateDoiRequestStatus(APPROVED, APPROVE_DOI_REQUEST, APPROVED);
     }
 
     @Test
     public void handleRequestReturnsForbiddenExceptionWhenUsernameIsNotInRequestContext()
         throws IOException {
-        final TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestHandler.class);
+        final TestAppender appender = LogUtils.getTestingAppender(UpdateDoiRequestStatusHandler.class);
         Publication publication = insertPublicationWithoutDoiRequest(
             getFixedClockWithDefaultTimeZone(mockOneHourBefore));
 
-        ApiUpdateDoiRequest updateDoiRequest = createApproveDoiRequest();
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(APPROVED);
 
         var requestContextMissingUsername = objectMapper.createObjectNode();
         GatewayResponse<Problem> response = sendRequest(updateDoiRequest, publication, requestContextMissingUsername);
@@ -252,7 +257,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     public void handleRequestSucessfullyUpdatesStatusWhenPublicationIdIsValid() throws IOException, NotFoundException {
         var publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockNow));
 
-        ApiUpdateDoiRequest updateRequest = createApproveDoiRequest();
+        ApiUpdateDoiRequest updateRequest = createUpdateDoiRequest(APPROVED);
 
         GatewayResponse<Void> response = sendRequest(updateRequest, publication, validUsername(publication),
             APPROVE_DOI_REQUEST);
@@ -268,11 +273,64 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
     }
 
-    private ApiUpdateDoiRequest createApproveDoiRequest() {
+    private void handleRequestReturnsAcceptedWhenUserRequestsDoiRequestUpdateAndHasTheRight(
+        DoiRequestStatus approved, AccessRight approveDoiRequest)
+        throws IOException {
+        Publication publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockOneHourBefore));
+        GatewayResponse<Void> response = createUpdateDoiRequest(publication, approved, approveDoiRequest);
+        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_ACCEPTED)));
+    }
+
+
+
+    private void userTriesToUpdateDoiRequestStatus(DoiRequestStatus approved, AccessRight readDoiRequest,
+                                                   DoiRequestStatus requested) throws IOException, NotFoundException {
+        Publication publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockOneHourBefore));
+        updateDoiRequest(publication, approved, readDoiRequest);
+
+        assertThatDoiRequestStatusInDatabaseIs(publication, requested);
+    }
+
+    private void assertThatDoiRequestStatusInDatabaseIs(Publication publication, DoiRequestStatus requested)
+        throws NotFoundException {
+        DoiRequest doiRequest = doiRequestsService.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
+            .map(Publication::getDoiRequest)
+            .orElseThrow();
+
+        assertThat(doiRequest.getStatus(), is(equalTo(requested)));
+    }
+
+    private GatewayResponse<Problem> userSendsDoiRequestUpdate(DoiRequestStatus requestedChange,
+                                                               AccessRight... userights) throws IOException {
+        Publication publication = insertPublicationWithDoiRequest(
+            getFixedClockWithDefaultTimeZone(mockOneHourBefore));
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(requestedChange);
+
+        return sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER,
+            userights);
+    }
+
+    private void updateDoiRequest(Publication publication, DoiRequestStatus rejected, AccessRight readDoiRequest)
+        throws IOException {
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(rejected);
+        sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER, readDoiRequest);
+    }
+
+    private GatewayResponse<Void> createUpdateDoiRequest(Publication publication,
+                                                         DoiRequestStatus requestedDoiRequestStatus,
+                                                         AccessRight userAccessRight
+    ) throws IOException {
+        ApiUpdateDoiRequest updateDoiRequest = createUpdateDoiRequest(requestedDoiRequestStatus);
+        return sendRequest(updateDoiRequest, publication, NOT_THE_PUBLICATION_OWNER,
+            userAccessRight);
+    }
+
+    private ApiUpdateDoiRequest createUpdateDoiRequest(DoiRequestStatus doiRequestStatus) {
         var updateDoiRequest = new ApiUpdateDoiRequest();
-        updateDoiRequest.setDoiRequestStatus(APPROVED);
+        updateDoiRequest.setDoiRequestStatus(doiRequestStatus);
         return updateDoiRequest;
     }
+
 
     private ApiUpdateDoiRequest createInvalidUpdateDoiRequest() {
         return new ApiUpdateDoiRequest();
@@ -282,18 +340,17 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return Clock.fixed(instant, ZoneId.systemDefault());
     }
 
-    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details,
-                                                                           String username,
-                                                                           String publicationOwner) {
+    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details) {
         String errorMessage = details.getDetail();
-        assertThat(errorMessage, not(containsString(username)));
-        assertThat(errorMessage, not(containsString(publicationOwner)));
+        assertThat(errorMessage, not(containsString(NOT_THE_PUBLICATION_OWNER)));
+        assertThat(errorMessage, not(containsString(DynamoDBDoiRequestsService.PUBLISHER_ID)));
     }
 
-    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender, String username) {
+    private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender,
+                                                                String expectedMessage) {
 
-        assertThat(appender.getMessages(), containsString(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST));
-        assertThat(appender.getMessages(), containsString(username));
+        assertThat(appender.getMessages(), containsString(expectedMessage));
+        assertThat(appender.getMessages(), containsString(NOT_THE_PUBLICATION_OWNER));
     }
 
     private String validUsername(Publication publication) {

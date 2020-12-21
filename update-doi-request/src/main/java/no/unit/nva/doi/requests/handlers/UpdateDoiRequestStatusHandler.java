@@ -17,7 +17,6 @@ import no.unit.nva.doi.requests.userdetails.UserDetails;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
-import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
@@ -27,26 +26,26 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestStatusHandler extends DoiRequestAuthorizedHandlerTemplate<ApiUpdateDoiRequest, Void> {
 
     public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
     public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
-    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestStatusHandler.class);
     private final DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory;
 
     private final String apiScheme;
     private final String apiHost;
 
     @JacocoGenerated
-    public UpdateDoiRequestHandler() {
+    public UpdateDoiRequestStatusHandler() {
         this(defaultEnvironment(), defaultStsClient(), DEFAULT_SERVICE_FACTORY);
     }
 
-    public UpdateDoiRequestHandler(Environment environment,
-                                   AWSSecurityTokenService stsClient,
-                                   DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
+    public UpdateDoiRequestStatusHandler(Environment environment,
+                                         AWSSecurityTokenService stsClient,
+                                         DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory) {
         super(ApiUpdateDoiRequest.class, environment, stsClient, logger);
         this.apiScheme = environment.readEnv(ServiceConstants.API_SCHEME_ENV_VARIABLE);
         this.apiHost = environment.readEnv(ServiceConstants.API_HOST_ENV_VARIABLE);
@@ -86,7 +85,7 @@ public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate
 
     private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
                                         STSAssumeRoleSessionCredentialsProvider credentials, UUID publicationIdentifier)
-        throws ForbiddenException, NotFoundException {
+        throws ApiGatewayException {
         var doiRequestStatus = input.getDoiRequestStatus();
         String username = getUserName(requestInfo);
         List<AccessRight> accessRights = extractAccessRights(requestInfo);

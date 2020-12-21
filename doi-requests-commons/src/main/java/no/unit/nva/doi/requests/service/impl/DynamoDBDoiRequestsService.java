@@ -1,6 +1,8 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static java.util.Objects.nonNull;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.APPROVE_DOI_REQUEST;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.REJECT_DOI_REQUEST;
 import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -45,6 +47,8 @@ import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.GodClass")
+//TODO: Fix GodClass problem (NP-2007)
 public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     public static final String PUBLICATION_ID_HASH_KEY_NAME = "identifier";
@@ -57,6 +61,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
     public static final String ACCESS_DENIED_ERROR_MESSAGE = "Status Code: 400; Error Code: AccessDeniedException";
     public static final String USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST = "User not allowed to approve a DOI request: ";
+    public static final String USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST = "User is not allowed to reject a Doi request";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Clock clockForTimestamps;
@@ -121,7 +126,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     @Override
     public void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
-        throws ConflictException, NotFoundException, ForbiddenException {
+        throws ApiGatewayException {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
@@ -134,7 +139,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     @Override
     public void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
                                  String requestedByUsername, List<AccessRight> userAccessRights)
-        throws NotFoundException, ForbiddenException {
+        throws ApiGatewayException {
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
         authorizeChange(requestedStatusChange, userAccessRights, requestedByUsername);
         publication.updateDoiRequestStatus(requestedStatusChange);
@@ -145,19 +150,27 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
                                  List<AccessRight> userAccessRights,
                                  String username)
         throws ForbiddenException {
-        if (doiRequestApprovalIsUnauthorized(requestedStatusChange, userAccessRights)) {
+
+        if (userTriesToApproveDoiRequest(requestedStatusChange)
+            && userDoesNotHaveTheRight(userAccessRights, APPROVE_DOI_REQUEST)) {
             logger.warn(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST + username);
+            throw new ForbiddenException();
+        }
+
+        if (userTriesToRejectDoiRequest(requestedStatusChange)
+            && userDoesNotHaveTheRight(userAccessRights, REJECT_DOI_REQUEST)) {
+
+            logger.warn(USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST + username);
             throw new ForbiddenException();
         }
     }
 
-    private boolean doiRequestApprovalIsUnauthorized(DoiRequestStatus requestedStatusChange,
-                                                     List<AccessRight> userAccessRights) {
-        return userTriesToApproveDoiRequest(requestedStatusChange) && userCannotApproveDoiRequests(userAccessRights);
+    private boolean userTriesToRejectDoiRequest(DoiRequestStatus requestedStatusChange) {
+        return DoiRequestStatus.REJECTED.equals(requestedStatusChange);
     }
 
-    private boolean userCannotApproveDoiRequests(List<AccessRight> userAccessRights) {
-        return !userAccessRights.contains(AccessRight.APPROVE_DOI_REQUEST);
+    private boolean userDoesNotHaveTheRight(List<AccessRight> userAccessRights, AccessRight rejectDoiRequest) {
+        return !userAccessRights.contains(rejectDoiRequest);
     }
 
     private boolean userTriesToApproveDoiRequest(DoiRequestStatus requestedStatusChange) {
@@ -170,7 +183,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .map(this::extractPublications)
             .map(this::filterNotPublishedPublications)
             .map(this::keepMostRecentPublications)
-            .orElseThrow(this::handleErrorFetchingPublications);
+            .orElseThrow(this::handleDynamoDbException);
     }
 
     private List<Publication> filterNotPublishedPublications(List<Publication> list) {
@@ -214,7 +227,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return doiRequestsIndex.query(querySpec);
     }
 
-    private <T> ApiGatewayException handleErrorFetchingPublications(Failure<T> fail) {
+    private <T> ApiGatewayException handleDynamoDbException(Failure<T> fail) {
         if (isAccessDeniedException(fail.getException())) {
             return new ForbiddenException();
         }
@@ -282,10 +295,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-    private void putItem(Publication publication) {
+    private void putItem(Publication publication) throws ApiGatewayException {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec = new PutItemSpec().withItem(item);
-        publicationsTable.putItem(putItemSpec);
+        attempt(() -> publicationsTable.putItem(putItemSpec))
+            .orElseThrow(this::handleDynamoDbException);
     }
 
     private Publication fetchPublicationByIdentifier(UUID publicationIdentifier) throws NotFoundException {
