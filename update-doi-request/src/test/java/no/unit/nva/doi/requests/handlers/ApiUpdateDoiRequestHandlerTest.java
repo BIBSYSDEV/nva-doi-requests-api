@@ -3,9 +3,7 @@ package no.unit.nva.doi.requests.handlers;
 import static java.util.Objects.isNull;
 import static no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest.INVALID_PUBLICATION_ID_ERROR;
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.ACCESS_DENIED_ERROR_MESSAGE;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLICATION_NOT_FOUND_ERROR_MESSAGE;
-import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.PUBLISHER_ID;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
@@ -19,26 +17,18 @@ import static no.unit.nva.useraccessmanagement.dao.AccessRight.APPROVE_DOI_REQUE
 import static no.unit.nva.useraccessmanagement.dao.AccessRight.READ_DOI_REQUEST;
 import static no.unit.nva.useraccessmanagement.dao.AccessRight.REJECT_DOI_REQUEST;
 import static nva.commons.utils.JsonUtils.objectMapper;
-import static nva.commons.utils.attempt.Try.attempt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.StringContains.containsString;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
-import com.amazonaws.services.dynamodbv2.document.Table;
-import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
-import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.time.Clock;
 import java.time.Instant;
@@ -190,10 +180,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(problem.getDetail(), is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
 
         assertThatLogsContainReasonForForbiddenMessage(appender,
-            USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST,
-            NOT_THE_PUBLICATION_OWNER
+            USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST
         );
-        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem, NOT_THE_PUBLICATION_OWNER, PUBLISHER_ID);
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem);
     }
 
     @Test
@@ -207,11 +196,10 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         assertThat(problem.getDetail(), is(equalTo(ForbiddenException.DEFAULT_MESSAGE)));
 
         assertThatLogsContainReasonForForbiddenMessage(appender,
-            USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST,
-            NOT_THE_PUBLICATION_OWNER
+            USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST
         );
 
-        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem, NOT_THE_PUBLICATION_OWNER, PUBLISHER_ID);
+        assertThatProblemDetailsDoesNotRevealSensitiveInformation(problem);
     }
 
     @Test
@@ -285,21 +273,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             FAKE_ENV_SCHEMA_AND_HOST + publication.getIdentifier().toString()));
     }
 
-    @Test
-    public void handleRequestReturnsForbiddenWhenAccessDeniedExceptionOccurs()
-        throws NoSuchFieldException, IllegalAccessException, IOException {
-        databaseServiceThrowingAccessDeniedException();
-
-        var publication = insertPublicationWithDoiRequest(getFixedClockWithDefaultTimeZone(mockNow));
-
-        ApiUpdateDoiRequest updateRequest = updateDoiRequestStatus(APPROVED);
-
-        GatewayResponse<Void> response = sendRequest(updateRequest, publication, validUsername(publication),
-            APPROVE_DOI_REQUEST);
-
-        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_ACCEPTED)));
-    }
-
     private void handleRequestReturnsAcceptedWhenUserRequestsDoiRequestUpdateAndHasTheRight(DoiRequestStatus approved,
                                                                                             AccessRight approveDoiRequest)
         throws IOException {
@@ -364,20 +337,17 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return Clock.fixed(instant, ZoneId.systemDefault());
     }
 
-    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details,
-                                                                           String username,
-                                                                           String publicationOwner) {
+    private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details) {
         String errorMessage = details.getDetail();
-        assertThat(errorMessage, not(containsString(username)));
-        assertThat(errorMessage, not(containsString(publicationOwner)));
+        assertThat(errorMessage, not(containsString(ApiUpdateDoiRequestHandlerTest.NOT_THE_PUBLICATION_OWNER)));
+        assertThat(errorMessage, not(containsString(DynamoDBDoiRequestsService.PUBLISHER_ID)));
     }
 
     private void assertThatLogsContainReasonForForbiddenMessage(TestAppender appender,
-                                                                String expectedMessage,
-                                                                String username) {
+                                                                String expectedMessage) {
 
         assertThat(appender.getMessages(), containsString(expectedMessage));
-        assertThat(appender.getMessages(), containsString(username));
+        assertThat(appender.getMessages(), containsString(ApiUpdateDoiRequestHandlerTest.NOT_THE_PUBLICATION_OWNER));
     }
 
     private String validUsername(Publication publication) {
@@ -519,17 +489,5 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private ByteArrayOutputStream outputStream() {
         return new ByteArrayOutputStream();
-    }
-
-    private Table databaseServiceThrowingAccessDeniedException() throws NoSuchFieldException, IllegalAccessException {
-        Field tableField = doiRequestsService.getClass().getDeclaredField("publicationsTable");
-        tableField.setAccessible(true);
-        Table table = (Table) tableField.get(doiRequestsService);
-        Table spiedTable = spy(table);
-        doThrow(new AmazonDynamoDBException(ACCESS_DENIED_ERROR_MESSAGE)).when(spiedTable)
-            .putItem(any(PutItemSpec.class));
-        tableField.set(doiRequestsService, spiedTable);
-
-        return spiedTable;
     }
 }
