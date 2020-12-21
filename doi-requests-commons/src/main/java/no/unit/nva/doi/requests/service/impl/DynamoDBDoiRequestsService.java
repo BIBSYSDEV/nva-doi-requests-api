@@ -157,7 +157,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             throw new ForbiddenException();
         }
 
-        if (userTriesToRejectDoiRequestStatus(requestedStatusChange)
+        if (userTriesToRejectDoiRequest(requestedStatusChange)
             && userDoesNotHaveTheRight(userAccessRights, REJECT_DOI_REQUEST)) {
 
             logger.warn(USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST + username);
@@ -165,7 +165,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         }
     }
 
-    private boolean userTriesToRejectDoiRequestStatus(DoiRequestStatus requestedStatusChange) {
+    private boolean userTriesToRejectDoiRequest(DoiRequestStatus requestedStatusChange) {
         return DoiRequestStatus.REJECTED.equals(requestedStatusChange);
     }
 

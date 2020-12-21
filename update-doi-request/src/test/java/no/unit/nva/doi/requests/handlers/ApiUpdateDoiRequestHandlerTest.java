@@ -339,7 +339,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
     private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details) {
         String errorMessage = details.getDetail();
-        assertThat(errorMessage, not(containsString(ApiUpdateDoiRequestHandlerTest.NOT_THE_PUBLICATION_OWNER)));
+        assertThat(errorMessage, not(containsString(NOT_THE_PUBLICATION_OWNER)));
         assertThat(errorMessage, not(containsString(DynamoDBDoiRequestsService.PUBLISHER_ID)));
     }
 
@@ -347,7 +347,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
                                                                 String expectedMessage) {
 
         assertThat(appender.getMessages(), containsString(expectedMessage));
-        assertThat(appender.getMessages(), containsString(ApiUpdateDoiRequestHandlerTest.NOT_THE_PUBLICATION_OWNER));
+        assertThat(appender.getMessages(), containsString(NOT_THE_PUBLICATION_OWNER));
     }
 
     private String validUsername(Publication publication) {
