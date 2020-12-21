@@ -10,8 +10,6 @@ import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
-import nva.commons.exceptions.ForbiddenException;
-import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 
 public interface DoiRequestsService {
@@ -27,9 +25,9 @@ public interface DoiRequestsService {
         throws JsonProcessingException, NotFoundException;
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
-        throws ConflictException, NotFoundException, ForbiddenException;
+        throws ApiGatewayException;
 
     void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
                           String requestedByUsername,List<AccessRight> userAccessRights)
-        throws NotFoundException, ForbiddenException;
+        throws ApiGatewayException;
 }

@@ -17,7 +17,6 @@ import no.unit.nva.doi.requests.userdetails.UserDetails;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
-import nva.commons.exceptions.commonexceptions.NotFoundException;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
@@ -86,7 +85,7 @@ public class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandlerTemplate
 
     private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
                                         STSAssumeRoleSessionCredentialsProvider credentials, UUID publicationIdentifier)
-        throws ForbiddenException, NotFoundException {
+        throws ApiGatewayException {
         var doiRequestStatus = input.getDoiRequestStatus();
         String username = getUserName(requestInfo);
         List<AccessRight> accessRights = extractAccessRights(requestInfo);
