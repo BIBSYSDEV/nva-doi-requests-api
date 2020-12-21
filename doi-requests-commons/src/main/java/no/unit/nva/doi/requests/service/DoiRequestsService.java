@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
@@ -14,7 +15,6 @@ import nva.commons.exceptions.commonexceptions.NotFoundException;
 
 public interface DoiRequestsService {
 
-    String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
     List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status) throws ApiGatewayException;
 
@@ -27,7 +27,7 @@ public interface DoiRequestsService {
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
         throws ApiGatewayException;
 
-    void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
+    void updateDoiRequest(UUID publicationIdentifier, ApiUpdateDoiRequest requestedStatusChange,
                           String requestedByUsername,List<AccessRight> userAccessRights)
         throws ApiGatewayException;
 }

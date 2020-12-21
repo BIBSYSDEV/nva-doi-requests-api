@@ -1,6 +1,8 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithDoiRequest;
@@ -36,9 +38,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
+import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
-import no.unit.nva.doi.requests.service.DoiRequestsService;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequest;
@@ -67,6 +71,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
     public static final List<AccessRight> APPROVE_ACCESS_RIGHT = List.of(AccessRight.APPROVE_DOI_REQUEST);
+    public static final String NOT_THE_ONWER = "not_the_onwer";
     private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
     private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
@@ -267,7 +272,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
             publication.getOwner());
         ConflictException exception = assertThrows(ConflictException.class, action);
 
-        assertThat(exception.getMessage(), containsString(DoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
+        assertThat(exception.getMessage(), containsString(DOI_ALREADY_EXISTS_ERROR));
     }
 
     @Test
@@ -324,8 +329,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Publication publication = getPublicationWithDoiRequest(clock);
         insertPublication(publication);
         assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
-
-        service.updateDoiRequest(publication.getIdentifier(), APPROVED, publication.getOwner(), APPROVE_ACCESS_RIGHT);
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
+        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER, APPROVE_ACCESS_RIGHT);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
@@ -334,6 +340,51 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
 
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
+    }
+
+    @Test
+    public void updateDoiRequestPersistsMessageWhenInputContainsMessageAndUserIsAuthorized()
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
+        String expectedMessage = "This is the curator's message";
+        updateDoiRequest.setMessage(expectedMessage);
+        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER, APPROVE_ACCESS_RIGHT);
+
+        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
+            .orElseThrow();
+        DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
+
+        assertThatActualDoiRequestContainsExpectedMessage(actualDoiRequest, expectedMessage);
+    }
+
+    @Test
+    public void updateDoThrowsBadRequestExceptionWhenPublicationDoesNotContainDoiRequest()
+        throws JsonProcessingException {
+        Publication publication = getPublicationWithoutDoiRequest(clock);
+        insertPublication(publication);
+
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
+
+        Executable action = () ->
+            service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER,
+                APPROVE_ACCESS_RIGHT);
+
+        BadRequestException exception = assertThrows(BadRequestException.class, action);
+
+        assertThat(exception.getMessage(), containsString(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
+    }
+
+    private void assertThatActualDoiRequestContainsExpectedMessage(DoiRequest actualDoiRequest,
+                                                                   String expectedMessage) {
+        String actualMessage = actualDoiRequest.getMessages().stream()
+            .filter(m -> m.getText().equals(expectedMessage))
+            .map(DoiRequestMessage::getText)
+            .collect(SingletonCollector.collect());
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
     private Publication updatedPublication(Publication publication) {

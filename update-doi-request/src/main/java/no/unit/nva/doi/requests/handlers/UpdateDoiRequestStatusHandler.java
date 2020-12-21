@@ -86,11 +86,11 @@ public class UpdateDoiRequestStatusHandler extends DoiRequestAuthorizedHandlerTe
     private void updateDoiRequestStatus(ApiUpdateDoiRequest input, RequestInfo requestInfo,
                                         STSAssumeRoleSessionCredentialsProvider credentials, UUID publicationIdentifier)
         throws ApiGatewayException {
-        var doiRequestStatus = input.getDoiRequestStatus();
+
         String username = getUserName(requestInfo);
         List<AccessRight> accessRights = extractAccessRights(requestInfo);
         DynamoDBDoiRequestsService doiRequestService = doiRequestsServiceFactory.getService(credentials);
-        doiRequestService.updateDoiRequest(publicationIdentifier, doiRequestStatus, username, accessRights);
+        doiRequestService.updateDoiRequest(publicationIdentifier, input, username, accessRights);
     }
 
     private List<AccessRight> extractAccessRights(RequestInfo requestInfo) {
