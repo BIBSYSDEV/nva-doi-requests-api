@@ -34,6 +34,7 @@ import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -376,6 +377,33 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         BadRequestException exception = assertThrows(BadRequestException.class, action);
 
         assertThat(exception.getMessage(), containsString(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
+    }
+
+
+    @Test
+    public void addMessagePersistsMessageToDatabase() throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        ApiUpdateDoiRequest updateDoiRequest=  new ApiUpdateDoiRequest();
+        String expectedMessage = "expectedMessage";
+        updateDoiRequest.setMessage(expectedMessage);
+        service.addMessage(publication.getIdentifier(),expectedMessage,publication.getOwner());
+
+        String actualMessage= extractMessageFromPublication(publication, expectedMessage);
+        assertThat(actualMessage,is(equalTo(expectedMessage)));
+
+    }
+
+    private String extractMessageFromPublication(Publication publication, String expectedMessage) throws NotFoundException {
+        return service.fetchDoiRequestByPublicationIdentifier(
+            publication.getIdentifier())
+            .stream()
+            .map(Publication::getDoiRequest)
+            .map(DoiRequest::getMessages)
+            .flatMap(Collection::stream)
+            .map(DoiRequestMessage::getText)
+            .filter(text -> text.equals(expectedMessage))
+            .collect(SingletonCollector.collect());
     }
 
     private void assertThatActualDoiRequestContainsExpectedMessage(DoiRequest actualDoiRequest,

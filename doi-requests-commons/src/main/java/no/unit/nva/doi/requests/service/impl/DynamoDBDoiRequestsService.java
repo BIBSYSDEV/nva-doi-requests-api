@@ -157,31 +157,43 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
-    /**
-     * Adds a message.
-     * @param publicationIdentifier the publication identifier
-     * @param message the message.
-     * @param userId the user id.
-     * @throws ApiGatewayException
-     */
+    @Override
     public void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException {
         Instant now = clockForTimestamps.instant();
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        List<DoiRequestMessage> messages = Optional.ofNullable(publication.getDoiRequest().getMessages())
-            .orElse(new ArrayList<>());
-        DoiRequestMessage doiRequestMessage = new DoiRequestMessage.Builder()
+        DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, userId, now);
+        List<DoiRequestMessage> messages = extractExistingMessages(publication);
+        messages.add(doiRequestMessage);
+        updatePublication(publication, now, messages);
+        putItem(publication);
+    }
+
+    private void updatePublication( Publication publication,Instant now, List<DoiRequestMessage> messages) {
+        DoiRequest updatedDoiRequest = updateDoiRequest(now, publication, messages);
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(now);
+    }
+
+    private DoiRequest updateDoiRequest(Instant now, Publication publication, List<DoiRequestMessage> messages) {
+        return publication.getDoiRequest().copy()
+            .withMessages(messages)
+            .withModifiedDate(now)
+            .build();
+    }
+
+    private DoiRequestMessage createNewDoiRequestMessage(String message, String userId, Instant now) {
+        return new Builder()
             .withAuthor(userId)
             .withText(message)
             .withTimestamp(now)
             .build();
-        messages.add(doiRequestMessage);
-        DoiRequest updatedDoiRequest = publication.getDoiRequest().copy()
-            .withMessages(messages)
-            .withModifiedDate(now)
-            .build();
-        publication.setDoiRequest(updatedDoiRequest);
-        publication.setModifiedDate(now);
-        putItem(publication);
+    }
+
+
+    private List<DoiRequestMessage> extractExistingMessages(Publication publication) {
+        return Optional.ofNullable(publication.getDoiRequest())
+            .map(DoiRequest::getMessages)
+            .orElse(new ArrayList<>());
     }
 
     private DoiRequest updateDoiRequest(Publication publication, ApiUpdateDoiRequest apiUpdateDoiRequest,
@@ -205,11 +217,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private Optional<DoiRequestMessage> createDoiRequestMessage(ApiUpdateDoiRequest apiUpdateDoiRequest,
                                                                 String requestedByUsername, Instant now) {
         return apiUpdateDoiRequest.getMessage()
-            .map(messageText -> new Builder()
-                .withAuthor(requestedByUsername)
-                .withText(messageText)
-                .withTimestamp(now)
-                .build());
+            .map(messageText -> createNewDoiRequestMessage(messageText, requestedByUsername, now));
     }
 
     private DoiRequest.Builder updateDoiRequestStatus(ApiUpdateDoiRequest apiUpdateDoiRequest,
@@ -364,11 +372,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private DoiRequestMessage createMessage(String message, String author) {
-        return new DoiRequestMessage.Builder()
-            .withAuthor(author)
-            .withText(message)
-            .withTimestamp(Instant.now(clockForTimestamps))
-            .build();
+        return createNewDoiRequestMessage(message, author, Instant.now(clockForTimestamps));
     }
 
     private void putItem(Publication publication) throws ApiGatewayException {

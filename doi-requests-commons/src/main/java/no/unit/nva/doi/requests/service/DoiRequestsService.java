@@ -30,5 +30,12 @@ public interface DoiRequestsService {
                           String requestedByUsername, List<AccessRight> userAccessRights)
         throws ApiGatewayException;
 
+    /**
+     * Adds a message.
+     * @param publicationIdentifier the publication identifier
+     * @param message the message.
+     * @param userId the user id.
+     * @throws ApiGatewayException when a predictable exception happens
+     */
     void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException;
 }

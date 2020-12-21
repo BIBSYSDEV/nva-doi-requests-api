@@ -5,7 +5,6 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
 import java.util.UUID;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
-import no.unit.nva.doi.requests.userdetails.UserDetails;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
