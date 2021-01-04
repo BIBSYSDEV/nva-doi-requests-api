@@ -13,20 +13,17 @@ import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import org.slf4j.Logger;
 
-public class DoiRequestMessageHandler extends UpdateDoiRequestHandler{
+public class DoiRequestMessageHandler extends UpdateDoiRequestHandler {
 
     private final DynamoDbDoiRequestsServiceFactory serviceFactory;
-
-
 
     protected DoiRequestMessageHandler(Environment environment,
                                        AWSSecurityTokenService stsClient,
                                        DynamoDbDoiRequestsServiceFactory serviceFactory,
-                                       Logger logger){
-        super(ApiUpdateDoiRequest.class,environment,stsClient,logger);
+                                       Logger logger) {
+        super(ApiUpdateDoiRequest.class, environment, stsClient, logger);
         this.serviceFactory = serviceFactory;
     }
-
 
     @Override
     protected Integer getSuccessStatusCode(ApiUpdateDoiRequest input, Void output) {
@@ -35,13 +32,13 @@ public class DoiRequestMessageHandler extends UpdateDoiRequestHandler{
 
     @Override
     protected Void processInput(ApiUpdateDoiRequest input, RequestInfo requestInfo,
-                                  STSAssumeRoleSessionCredentialsProvider credentialsProvider, Context context)
+                                STSAssumeRoleSessionCredentialsProvider credentialsProvider, Context context)
         throws ApiGatewayException {
         DynamoDBDoiRequestsService service = serviceFactory.getService(credentialsProvider);
         String userId = getUserName(requestInfo);
         String message = input.getMessage().orElseThrow();
-        UUID publicationId =getPublicationIdentifier(requestInfo);
-        service.addMessage(publicationId,message,userId);
-        return  null;
+        UUID publicationId = getPublicationIdentifier(requestInfo);
+        service.addMessage(publicationId, message, userId);
+        return null;
     }
 }

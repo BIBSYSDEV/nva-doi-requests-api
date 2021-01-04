@@ -46,21 +46,20 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
     private ByteArrayOutputStream outputStream;
 
     private final FakeStsClient stsClient = new FakeStsClient();
-    private  final Environment environment = mockEnvironment();
+    private final Environment environment = mockEnvironment();
     private final Context context = mock(Context.class);
-    private  final Logger logger = mock(Logger.class);
+    private final Logger logger = mock(Logger.class);
     private DynamoDBDoiRequestsService handlerService;
 
     @BeforeEach
     public void init() {
         initializeDatabase();
-        DynamoDbDoiRequestsServiceFactory serviceFactory =  DynamoDbDoiRequestsServiceFactory
+        DynamoDbDoiRequestsServiceFactory serviceFactory = DynamoDbDoiRequestsServiceFactory
             .serviceWithCustomClientWithoutCredentials(client, environment);
-         handlerService = serviceFactory.getService(IGNORED_CREDENTIALS);
-        outputStream= new ByteArrayOutputStream();
+        handlerService = serviceFactory.getService(IGNORED_CREDENTIALS);
+        outputStream = new ByteArrayOutputStream();
 
-        handler = new DoiRequestMessageHandler(environment, stsClient, serviceFactory,logger);
-
+        handler = new DoiRequestMessageHandler(environment, stsClient, serviceFactory, logger);
     }
 
     @Test
@@ -68,14 +67,13 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
         Publication publication = insertPublicationWithDoiRequest(mockClock);
 
         String expectedMessage = UUID.randomUUID().toString();
-        InputStream request = createRequest(expectedMessage,publication);
-        handler.handleRequest(request,outputStream,context);
+        InputStream request = createRequest(expectedMessage, publication);
+        handler.handleRequest(request, outputStream, context);
 
         Publication actualPublication = handlerService.fetchDoiRequestByPublicationIdentifier(
             publication.getIdentifier()).orElseThrow();
 
-        assertThatActualPublicationHasExpectedMessage(expectedMessage,actualPublication);
-
+        assertThatActualPublicationHasExpectedMessage(expectedMessage, actualPublication);
     }
 
 
@@ -86,11 +84,9 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
            handler returns accepted when message exists and user is the publication owner
            handler returns accepted when message exists and user is a curator
            handler returns Forbidden when user is not authorized (not the owner or a curator)
-           hanlder returns BadRequest when user
-
+           handler returns BadRequest when user
 
      */
-
 
     private void assertThatActualPublicationHasExpectedMessage(String expectedMessage, Publication actualPublication) {
         String actualMessage = actualPublication.getDoiRequest().getMessages()
@@ -98,10 +94,10 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
             .map(DoiRequestMessage::getText)
             .filter(messageText -> messageText.equals(expectedMessage))
             .collect(SingletonCollector.collect());
-        assertThat(actualMessage,is(equalTo(expectedMessage)));
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
-    private InputStream createRequest(String message,Publication publication) throws JsonProcessingException {
+    private InputStream createRequest(String message, Publication publication) throws JsonProcessingException {
         ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setMessage(message);
         Map<String, String> pathParams =
