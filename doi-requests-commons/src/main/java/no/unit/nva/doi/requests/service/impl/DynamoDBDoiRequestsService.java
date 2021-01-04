@@ -29,10 +29,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
+import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
+import no.unit.nva.model.DoiRequestMessage.Builder;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
@@ -52,6 +55,7 @@ import org.slf4j.LoggerFactory;
 public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     public static final String PUBLICATION_ID_HASH_KEY_NAME = "identifier";
+    public static final String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
@@ -62,6 +66,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     public static final String ACCESS_DENIED_ERROR_MESSAGE = "Status Code: 400; Error Code: AccessDeniedException";
     public static final String USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST = "User not allowed to approve a DOI request: ";
     public static final String USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST = "User is not allowed to reject a Doi request";
+
+    public static final String ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST =
+        "You must initiate creation of a DoiRequest before you can update it.";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Clock clockForTimestamps;
@@ -131,19 +138,65 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
         DoiRequest newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
-        publication.setDoiRequest(newDoiRequestEntry);
-        publication.setModifiedDate(newDoiRequestEntry.getModifiedDate());
+        replaceDoiRequestInPublication(publication, newDoiRequestEntry);
         putItem(publication);
     }
 
     @Override
-    public void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
+    public void updateDoiRequest(UUID publicationIdentifier, ApiUpdateDoiRequest apiUpdateDoiRequest,
                                  String requestedByUsername, List<AccessRight> userAccessRights)
         throws ApiGatewayException {
+
+        authorizeChange(apiUpdateDoiRequest.getDoiRequestStatus(), userAccessRights, requestedByUsername);
+
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        authorizeChange(requestedStatusChange, userAccessRights, requestedByUsername);
-        publication.updateDoiRequestStatus(requestedStatusChange);
+
+        DoiRequest updatedDoiRequest =
+            doiRequestCloneWithNewStatusAndNewMessage(publication, apiUpdateDoiRequest, requestedByUsername);
+
+        replaceDoiRequestInPublication(publication, updatedDoiRequest);
         putItem(publication);
+    }
+
+    private DoiRequest doiRequestCloneWithNewStatusAndNewMessage(Publication publication,
+                                                                 ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                 String requestedByUsername
+    ) throws BadRequestException {
+        Instant currentTime = clockForTimestamps.instant();
+
+        DoiRequest existingDoiRequest = publication.getDoiRequest();
+        DoiRequest.Builder updatedDoiRequestBuilder =
+            copyExistingDoiRequestAndUpdateStatus(existingDoiRequest, apiUpdateDoiRequest, currentTime);
+
+        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
+            .ifPresent(updatedDoiRequestBuilder::addMessage);
+
+        return updatedDoiRequestBuilder.build();
+    }
+
+    private void replaceDoiRequestInPublication(Publication publication, DoiRequest updatedDoiRequest) {
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(updatedDoiRequest.getModifiedDate());
+    }
+
+    private Optional<DoiRequestMessage> createDoiRequestMessage(ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                String requestedByUsername, Instant now) {
+        return apiUpdateDoiRequest.getMessage()
+            .map(messageText -> new Builder()
+                .withAuthor(requestedByUsername)
+                .withText(messageText)
+                .withTimestamp(now)
+                .build());
+    }
+
+    private DoiRequest.Builder copyExistingDoiRequestAndUpdateStatus(DoiRequest existingDoiRequest,
+                                                                     ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                     Instant now) throws BadRequestException {
+        return Optional.ofNullable(existingDoiRequest)
+            .map(DoiRequest::copy)
+            .map(builder -> builder.withStatus(apiUpdateDoiRequest.getDoiRequestStatus()))
+            .map(builder -> builder.withModifiedDate(now))
+            .orElseThrow(() -> new BadRequestException(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
     }
 
     private void authorizeChange(DoiRequestStatus requestedStatusChange,
