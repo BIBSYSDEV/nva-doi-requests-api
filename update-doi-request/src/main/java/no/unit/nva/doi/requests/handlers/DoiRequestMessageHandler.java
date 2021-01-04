@@ -25,16 +25,16 @@ public class DoiRequestMessageHandler extends UpdateDoiRequestHandler<DoiRequest
 
     public static final String NO_MESSAGE_ERROR = "Message missing";
     private final DynamoDbDoiRequestsServiceFactory serviceFactory;
-    private static  final Logger LOGGER = LoggerFactory.getLogger(DoiRequestMessageHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DoiRequestMessageHandler.class);
 
     @JacocoGenerated
-    public DoiRequestMessageHandler(){
+    public DoiRequestMessageHandler() {
         this(new Environment());
     }
 
     @JacocoGenerated
-    public DoiRequestMessageHandler(Environment environment){
-        this(environment, defaultStsClient(), defaultServiceFactory(),LOGGER);
+    public DoiRequestMessageHandler(Environment environment) {
+        this(environment, defaultStsClient(), defaultServiceFactory(), LOGGER);
     }
 
     protected DoiRequestMessageHandler(Environment environment,
