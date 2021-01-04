@@ -189,6 +189,53 @@ Resources:
                 responses: {}
                 httpMethod: POST
                 type: AWS_PROXY
+          '/update-doi-request/{publicationIdentifier}/message':
+            post:
+              summary: Send a message regarding a Doi request
+              security:
+                - CognitoUserPool: [ ]
+              parameters:
+                - in: path
+                  name: publicationIdentifier
+                  description: Publication Id (uuid)
+                  required: true
+                  schema:
+                    type: string
+                    format: uuid
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/DoiRequestMessageDto'
+              responses:
+                '202':
+                  description: Accepted
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '403':
+                  description: Not authorized
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+                '404':
+                  description: Not Found
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Problem'
+
+              x-amazon-apigateway-integration:
+                uri:
+                  'Fn::Sub': >-
+                    arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NvaDoiRequestMessageHandler.Arn}/invocations
+                responses: { }
+                httpMethod: POST
+                type: AWS_PROXY
 
         components:
           schemas:
@@ -229,6 +276,11 @@ Resources:
                 doiRequestStatus:
                   $ref: '#/components/schemas/DoiRequestStatus'
               description: Initiate a Update DOI request process
+            DoiRequestMessageDto:
+              type: object
+              properties:
+                message:
+                  type: string
             DoiRequestStatus:
               description: Enum values for valid doiRequestStatus
               type: string
@@ -433,9 +485,34 @@ Resources:
         GetEvent:
           Type: Api
           Properties:
-            Path: /{publicationIdentifier}
+            Path: /update-doi-request/{publicationIdentifier}
             Method: post
             RestApiId: !Ref NvaDoiRequestsApi
+
+  NvaDoiRequestMessageHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: update-doi-request
+      Handler: no.unit.nva.doi.requests.handler.DoiRequestMessageHandler::handleRequest
+      Runtime: java11
+      MemorySize: 1400
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: '*'
+          TABLE_NAME: !Ref DoiRequestsTableName
+          INDEX_NAME: !Ref DoiRequestsIndexName
+          ASSUMED_ROLE_ARN: !GetAtt AssumedRole.Arn
+          API_HOST: !Ref CustomDomain
+          API_SCHEME: !Ref HttpScheme
+      Role: !GetAtt LambdaRole.Arn
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /update-doi-request/{publicationIdentifier}/message
+            Method: post
+            RestApiId: !Ref NvaDoiRequestsApi
+
   NvaDoiRequestsPathMapping:
     Type: AWS::ApiGateway::BasePathMapping
     Properties:
