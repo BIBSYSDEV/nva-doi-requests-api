@@ -24,7 +24,7 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestStatusHandler extends UpdateDoiRequestHandler {
+public class UpdateDoiRequestStatusHandler extends UpdateDoiRequestHandler<ApiUpdateDoiRequest> {
 
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
