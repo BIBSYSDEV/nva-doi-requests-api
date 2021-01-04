@@ -4,7 +4,6 @@ import static java.util.Objects.isNull;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Set;
@@ -29,16 +28,14 @@ public class DoiRequestMessageHandler extends UpdateDoiRequestHandler<DoiRequest
     private static  final Logger LOGGER = LoggerFactory.getLogger(DoiRequestMessageHandler.class);
 
     @JacocoGenerated
+    public DoiRequestMessageHandler(){
+        this(new Environment());
+    }
+
+    @JacocoGenerated
     public DoiRequestMessageHandler(Environment environment){
         this(environment, defaultStsClient(), defaultServiceFactory(),LOGGER);
     }
-
-
-    private static DynamoDbDoiRequestsServiceFactory defaultDatabaseServiceFactory(Environment environment) {
-        return new DynamoDbDoiRequestsServiceFactory(environment);
-    }
-
-
 
     protected DoiRequestMessageHandler(Environment environment,
                                        AWSSecurityTokenService stsClient,
