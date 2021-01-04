@@ -138,7 +138,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
         DoiRequest newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
-        updatePublication(publication, newDoiRequestEntry);
+        replaceDoiRequestInPublication(publication, newDoiRequestEntry);
         putItem(publication);
     }
 
@@ -151,9 +151,9 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
 
-        DoiRequest updatedDoiRequest = updateDoiRequest(publication, apiUpdateDoiRequest, requestedByUsername);
+        DoiRequest updatedDoiRequest = createUpdatedDoiRequest(publication, apiUpdateDoiRequest, requestedByUsername);
 
-        updatePublication(publication, updatedDoiRequest);
+        replaceDoiRequestInPublication(publication, updatedDoiRequest);
         putItem(publication);
     }
 
@@ -164,21 +164,44 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, userId, now);
         List<DoiRequestMessage> messages = extractExistingMessages(publication);
         messages.add(doiRequestMessage);
-        updatePublication(publication, now, messages);
+        replaceDoiRequestMessageMessageListInPublication(publication, now, messages);
         putItem(publication);
     }
 
-    private void updatePublication( Publication publication,Instant now, List<DoiRequestMessage> messages) {
-        DoiRequest updatedDoiRequest = updateDoiRequest(now, publication, messages);
+    private void replaceDoiRequestMessageMessageListInPublication(Publication publication,
+                                                                  Instant now,
+                                                                  List<DoiRequestMessage> messages) {
+        DoiRequest updatedDoiRequest = addMessageToDoiRequest(now, publication, messages);
         publication.setDoiRequest(updatedDoiRequest);
         publication.setModifiedDate(now);
     }
 
-    private DoiRequest updateDoiRequest(Instant now, Publication publication, List<DoiRequestMessage> messages) {
+    private DoiRequest addMessageToDoiRequest(Instant now, Publication publication, List<DoiRequestMessage> messages) {
         return publication.getDoiRequest().copy()
             .withMessages(messages)
             .withModifiedDate(now)
             .build();
+    }
+
+    private DoiRequest createUpdatedDoiRequest(Publication publication,
+                                               ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                               String requestedByUsername) throws BadRequestException {
+        Instant currentTime = clockForTimestamps.instant();
+
+        DoiRequest.Builder updatedDoiRequestBuilder = updateDoiRequestStatus(apiUpdateDoiRequest, publication,
+            currentTime);
+
+        addMessageToNewDoiRequestObject(apiUpdateDoiRequest, requestedByUsername, currentTime,
+            updatedDoiRequestBuilder);
+
+        return updatedDoiRequestBuilder.build();
+    }
+
+    private void addMessageToNewDoiRequestObject(ApiUpdateDoiRequest apiUpdateDoiRequest, String requestedByUsername,
+                                                 Instant currentTime,
+                                                 DoiRequest.Builder updatedDoiRequestBuilder) {
+        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
+            .ifPresent(updatedDoiRequestBuilder::addMessage);
     }
 
     private DoiRequestMessage createNewDoiRequestMessage(String message, String userId, Instant now) {
@@ -189,27 +212,13 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-
     private List<DoiRequestMessage> extractExistingMessages(Publication publication) {
         return Optional.ofNullable(publication.getDoiRequest())
             .map(DoiRequest::getMessages)
             .orElse(new ArrayList<>());
     }
 
-    private DoiRequest updateDoiRequest(Publication publication, ApiUpdateDoiRequest apiUpdateDoiRequest,
-                                        String requestedByUsername) throws BadRequestException {
-        Instant currentTime = clockForTimestamps.instant();
-
-        DoiRequest.Builder updatedDoiRequestBuilder = updateDoiRequestStatus(apiUpdateDoiRequest, publication,
-            currentTime);
-
-        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
-            .ifPresent(updatedDoiRequestBuilder::addMessage);
-
-        return updatedDoiRequestBuilder.build();
-    }
-
-    private void updatePublication(Publication publication, DoiRequest updatedDoiRequest) {
+    private void replaceDoiRequestInPublication(Publication publication, DoiRequest updatedDoiRequest) {
         publication.setDoiRequest(updatedDoiRequest);
         publication.setModifiedDate(updatedDoiRequest.getModifiedDate());
     }

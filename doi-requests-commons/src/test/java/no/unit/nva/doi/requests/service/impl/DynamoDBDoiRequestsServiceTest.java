@@ -39,7 +39,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
@@ -72,7 +71,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
     public static final List<AccessRight> APPROVE_ACCESS_RIGHT = List.of(AccessRight.APPROVE_DOI_REQUEST);
-    public static final String NOT_THE_ONWER = "not_the_onwer";
+    public static final String NOT_THE_ONWER = "not_the_owner";
     private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
     private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
@@ -379,22 +378,21 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(exception.getMessage(), containsString(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
     }
 
-
     @Test
     public void addMessagePersistsMessageToDatabase() throws JsonProcessingException, ApiGatewayException {
         Publication publication = getPublicationWithDoiRequest(clock);
         insertPublication(publication);
-        ApiUpdateDoiRequest updateDoiRequest=  new ApiUpdateDoiRequest();
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
         String expectedMessage = "expectedMessage";
         updateDoiRequest.setMessage(expectedMessage);
-        service.addMessage(publication.getIdentifier(),expectedMessage,publication.getOwner());
+        service.addMessage(publication.getIdentifier(), expectedMessage, publication.getOwner());
 
-        String actualMessage= extractMessageFromPublication(publication, expectedMessage);
-        assertThat(actualMessage,is(equalTo(expectedMessage)));
-
+        String actualMessage = extractMessageFromPublication(publication, expectedMessage);
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
-    private String extractMessageFromPublication(Publication publication, String expectedMessage) throws NotFoundException {
+    private String extractMessageFromPublication(Publication publication, String expectedMessage)
+        throws NotFoundException {
         return service.fetchDoiRequestByPublicationIdentifier(
             publication.getIdentifier())
             .stream()
@@ -409,8 +407,8 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     private void assertThatActualDoiRequestContainsExpectedMessage(DoiRequest actualDoiRequest,
                                                                    String expectedMessage) {
         String actualMessage = actualDoiRequest.getMessages().stream()
-            .filter(m -> m.getText().equals(expectedMessage))
             .map(DoiRequestMessage::getText)
+            .filter(message -> message.equals(expectedMessage))
             .collect(SingletonCollector.collect());
         assertThat(actualMessage, is(equalTo(expectedMessage)));
     }

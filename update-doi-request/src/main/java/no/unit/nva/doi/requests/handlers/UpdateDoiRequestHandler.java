@@ -22,7 +22,7 @@ public abstract class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandle
         super(iclass, environment, stsClient, logger);
     }
 
-   protected UUID getPublicationIdentifier(RequestInfo requestInfo) throws BadRequestException {
+    protected UUID getPublicationIdentifier(RequestInfo requestInfo) throws BadRequestException {
         String publicationIdentifierString = requestInfo.getPathParameter(API_PUBLICATION_PATH_IDENTIFIER);
         return attempt(() -> UUID.fromString(publicationIdentifierString))
             .orElseThrow(fail -> new BadRequestException(INVALID_PUBLICATION_ID_ERROR + publicationIdentifierString));
@@ -36,5 +36,4 @@ public abstract class UpdateDoiRequestHandler extends DoiRequestAuthorizedHandle
             throw new ForbiddenException();
         }
     }
-
 }
