@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
+import no.unit.nva.doi.requests.service.impl.UserInstance;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
@@ -32,10 +33,12 @@ public interface DoiRequestsService {
 
     /**
      * Adds a message.
+     *
      * @param publicationIdentifier the publication identifier
-     * @param message the message.
-     * @param userId the user id.
+     * @param message               the message.
+     * @param user                  the user details.
      * @throws ApiGatewayException when a predictable exception happens
      */
-    void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException;
+    void addMessage(UUID publicationIdentifier, String message, UserInstance user)
+        throws ApiGatewayException;
 }

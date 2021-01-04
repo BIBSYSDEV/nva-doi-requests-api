@@ -37,6 +37,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestMessage.Builder;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.model.Organization;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
@@ -158,14 +159,57 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     @Override
-    public void addMessage(UUID publicationIdentifier, String message, String userId) throws ApiGatewayException {
+    public void addMessage(UUID publicationIdentifier, String message, UserInstance user)
+        throws ApiGatewayException {
         Instant now = clockForTimestamps.instant();
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, userId, now);
+        authorizeSendingMessage(publication, user);
+
+        DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, user.getUserId(), now);
         List<DoiRequestMessage> messages = extractExistingMessages(publication);
         messages.add(doiRequestMessage);
         replaceDoiRequestMessageMessageListInPublication(publication, now, messages);
         putItem(publication);
+    }
+
+    private void authorizeSendingMessage(Publication publication, UserInstance user)
+        throws ForbiddenException {
+        if (userIsNotAuthorizedToSendMessage(publication, user)) {
+            throw new ForbiddenException();
+        }
+    }
+
+    private boolean userIsNotAuthorizedToSendMessage(Publication publication,
+                                                     UserInstance user) {
+        return !(
+            userIsPublicationOwner(publication, user.getUserId())
+                || userHasUpdateDoiRequestRightsForPublication(publication, user)
+            );
+    }
+
+    private boolean userHasUpdateDoiRequestRightsForPublication(Publication publication,
+                                                                UserInstance user) {
+
+        return userHasRightToUpdateDoiRequestStatus(user)
+            && userBelongsToThePublicationsInstitution(publication, user);
+    }
+
+    private boolean userHasRightToUpdateDoiRequestStatus(UserInstance user) {
+        return user.getAccessRights().contains(APPROVE_DOI_REQUEST)
+            && user.getAccessRights().contains(REJECT_DOI_REQUEST);
+    }
+
+    private boolean userBelongsToThePublicationsInstitution(Publication publication, UserInstance user) {
+        URI userInstitution = user.getPublisherId().orElse(null);
+
+        return Optional.ofNullable(publication.getPublisher())
+            .map(Organization::getId)
+            .filter(publicationInstitution -> publicationInstitution.equals(userInstitution))
+            .isPresent();
+    }
+
+    private boolean userIsPublicationOwner(Publication publication, String userId) {
+        return publication.getOwner().equals(userId);
     }
 
     private void replaceDoiRequestMessageMessageListInPublication(Publication publication,

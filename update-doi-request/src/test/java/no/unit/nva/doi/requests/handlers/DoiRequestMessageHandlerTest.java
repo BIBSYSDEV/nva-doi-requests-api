@@ -2,14 +2,12 @@ package no.unit.nva.doi.requests.handlers;
 
 import static no.unit.nva.doi.requests.handlers.UpdateDoiRequestHandler.API_PUBLICATION_PATH_IDENTIFIER;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
+import static no.unit.nva.doi.requests.util.PublicationGenerator.OWNER;
 import static nva.commons.utils.JsonUtils.objectMapper;
+import static nva.commons.utils.attempt.Try.attempt;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.hamcrest.core.IsNot.not;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -18,13 +16,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
-import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
+import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
-import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
+import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.Publication;
 import no.unit.nva.stubs.FakeStsClient;
@@ -37,19 +35,20 @@ import nva.commons.utils.SingletonCollector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
+import org.zalando.problem.Problem;
 
 public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
 
-    public static final String PUBLICATION_OWNER = "publication@owner.com";
     public static final AWSCredentialsProvider IGNORED_CREDENTIALS = null;
-    private DoiRequestMessageHandler handler;
-    private ByteArrayOutputStream outputStream;
-
+    public static final String NOT_THE_OWNER = "not_the_owner";
+    public static final String NOT_THE_PUBLISHER = "https://example.com/wrong_instutition";
     private final FakeStsClient stsClient = new FakeStsClient();
     private final Environment environment = mockEnvironment();
     private final Context context = mock(Context.class);
     private final Logger logger = mock(Logger.class);
-    private DynamoDBDoiRequestsService handlerService;
+    private DoiRequestMessageHandler handler;
+    private ByteArrayOutputStream outputStream;
+    private DoiRequestsService handlerService;
 
     @BeforeEach
     public void init() {
@@ -63,30 +62,97 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
     }
 
     @Test
-    public void handlerSavesMessageWhenInputContainsMessage() throws IOException, NotFoundException {
-        Publication publication = insertPublicationWithDoiRequest(mockClock);
+    public void handlerSavesMessageWhenInputContainsMessageAndUserIsThePublicationOwner()
+        throws IOException, NotFoundException {
+        RequestInputStream requestInputStream = this::validCreatorRequest;
 
-        String expectedMessage = UUID.randomUUID().toString();
-        InputStream request = createRequest(expectedMessage, publication);
-        handler.handleRequest(request, outputStream, context);
-
-        Publication actualPublication = handlerService.fetchDoiRequestByPublicationIdentifier(
-            publication.getIdentifier()).orElseThrow();
-
-        assertThatActualPublicationHasExpectedMessage(expectedMessage, actualPublication);
+        assertMessageIsSavedWhenAuthorizedUserSendsMessage(requestInputStream);
     }
 
+    @Test
+    public void handlerSavesMessageWhenInputContainsMessageAndUserIsAnInstitutionCurator()
+        throws IOException, NotFoundException {
+        RequestInputStream requestSupplier = this::validCuratorRequest;
 
-    /*
-           TODO:
-           handler saves message when message exists and user is the publication owner
-           handler saves message when message exists and user is a curator
-           handler returns accepted when message exists and user is the publication owner
-           handler returns accepted when message exists and user is a curator
-           handler returns Forbidden when user is not authorized (not the owner or a curator)
-           handler returns BadRequest when user
+        assertMessageIsSavedWhenAuthorizedUserSendsMessage(requestSupplier);
+    }
 
-     */
+    @Test
+    public void handlerReturnsAcceptedWhenUserIsThePublicationOwner() throws IOException {
+        RequestInputStream requestInputStream = this::validCreatorRequest;
+        assertResponseIsAcceptedWhenUserIsAuthorized(requestInputStream);
+    }
+
+    @Test
+    public void handlerReturnsAcceptedWhenUserIsACuratorOfTheCorrectInstitution() throws IOException {
+        RequestInputStream requestInputStream = this::validCuratorRequest;
+        assertResponseIsAcceptedWhenUserIsAuthorized(requestInputStream);
+    }
+
+    @Test
+    public void handlerReturnsForbiddenWhenUserIsNotTheOwnerOrAuthorizedToUpdateTheDoiRequest()
+        throws IOException, NotFoundException {
+        RequestInputStream request = this::invalidCreatorRequest;
+        InputObjects inputs = userSendsMessageForPublication(request);
+        assertThatHandlerReturnsForbiddenAndMessageIsNotSaved(inputs);
+    }
+
+    @Test
+    public void handlerReturnsForbiddenWhenUserIsACuratorOfTheWrongInstitution() throws IOException,
+                                                                                        NotFoundException {
+        RequestInputStream requestInputStream = this::invalidCuratorRequest;
+        InputObjects inputs = userSendsMessageForPublication(requestInputStream);
+        assertThatHandlerReturnsForbiddenAndMessageIsNotSaved(inputs);
+    }
+
+    @Test
+    public void handlerReturnsBadRequestWhenInputIsInvalid() throws IOException {
+        RequestInputStream request = (message, publication) -> requestWithoutMessage(publication);
+        userSendsMessageForPublication(request);
+        GatewayResponse<?> response = GatewayResponse.fromOutputStream(outputStream);
+        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_BAD_REQUEST)));
+    }
+
+    private void assertThatHandlerReturnsForbiddenAndMessageIsNotSaved(InputObjects inputs)
+        throws JsonProcessingException, NotFoundException {
+        GatewayResponse<Problem> response = GatewayResponse.fromOutputStream(outputStream);
+
+        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_FORBIDDEN)));
+
+        Publication actualPublication = fetchActualPublicationDirectly(inputs);
+
+        List<DoiRequestMessage> messages = actualPublication.getDoiRequest().getMessages();
+        assertThat(messages.size(), is(equalTo(0)));
+    }
+
+    private Publication fetchActualPublicationDirectly(InputObjects inputs)
+        throws JsonProcessingException, NotFoundException {
+        return handlerService.fetchDoiRequestByPublicationIdentifier(
+            inputs.getPublication().getIdentifier()).orElseThrow();
+    }
+
+    private void assertMessageIsSavedWhenAuthorizedUserSendsMessage(RequestInputStream requestSupplier)
+        throws IOException, NotFoundException {
+
+        InputObjects inputObjects = userSendsMessageForPublication(requestSupplier);
+        Publication actualPublication = fetchActualPublicationDirectly(inputObjects);
+        assertThatActualPublicationHasExpectedMessage(inputObjects.getMessage(), actualPublication);
+    }
+
+    private InputObjects userSendsMessageForPublication(RequestInputStream requestSupplier) throws IOException {
+        Publication publication = insertPublicationWithDoiRequest(mockClock);
+        String userMessage = UUID.randomUUID().toString();
+        InputStream request = requestSupplier.createRequest(userMessage, publication);
+        handler.handleRequest(request, outputStream, context);
+        return new InputObjects(publication, userMessage);
+    }
+
+    private void assertResponseIsAcceptedWhenUserIsAuthorized(RequestInputStream requestSupplier)
+        throws IOException {
+        userSendsMessageForPublication(requestSupplier);
+        GatewayResponse<?> response = GatewayResponse.fromOutputStream(outputStream);
+        assertThat(response.getStatusCode(), is(equalTo(HttpURLConnection.HTTP_ACCEPTED)));
+    }
 
     private void assertThatActualPublicationHasExpectedMessage(String expectedMessage, Publication actualPublication) {
         String actualMessage = actualPublication.getDoiRequest().getMessages()
@@ -97,17 +163,89 @@ public class DoiRequestMessageHandlerTest extends UpdateDoiTestUtils {
         assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
-    private InputStream createRequest(String message, Publication publication) throws JsonProcessingException {
+    private InputStream validCreatorRequest(String message, Publication publication) {
+        return creatorRequest(message, publication, OWNER);
+    }
+
+    private InputStream invalidCreatorRequest(String message, Publication publication) {
+        return creatorRequest(message, publication, NOT_THE_OWNER);
+    }
+
+    private InputStream creatorRequest(String message, Publication publication, String userId) {
         ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setMessage(message);
         Map<String, String> pathParams =
             Map.of(API_PUBLICATION_PATH_IDENTIFIER, publication.getIdentifier().toString());
 
-        return new HandlerRequestBuilder<ApiUpdateDoiRequest>(objectMapper)
+        return attempt(() -> new HandlerRequestBuilder<ApiUpdateDoiRequest>(objectMapper)
             .withBody(updateDoiRequest)
-            .withFeideId(PUBLICATION_OWNER)
+            .withFeideId(userId)
             .withAccessRight(AccessRight.READ_DOI_REQUEST.toString())
             .withPathParameters(pathParams)
-            .build();
+            .build())
+            .orElseThrow();
+    }
+
+    private InputStream validCuratorRequest(String message, Publication publication) {
+        return curatorRequest(message, publication, PublicationGenerator.PUBLISHER_ID.toString());
+    }
+
+    private InputStream invalidCuratorRequest(String message, Publication publication) {
+        return curatorRequest(message, publication, NOT_THE_PUBLISHER);
+    }
+
+    private InputStream curatorRequest(String message, Publication publication, String notThePublisher) {
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setMessage(message);
+        Map<String, String> pathParams =
+            Map.of(API_PUBLICATION_PATH_IDENTIFIER, publication.getIdentifier().toString());
+
+        return attempt(() -> new HandlerRequestBuilder<ApiUpdateDoiRequest>(objectMapper)
+            .withBody(updateDoiRequest)
+            .withFeideId(NOT_THE_OWNER)
+            .withCustomerId(notThePublisher)
+            .withAccessRight(AccessRight.APPROVE_DOI_REQUEST.toString())
+            .withAccessRight(AccessRight.REJECT_DOI_REQUEST.toString())
+            .withPathParameters(pathParams)
+            .build())
+            .orElseThrow();
+    }
+
+    private InputStream requestWithoutMessage(Publication publication) {
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        Map<String, String> pathParams =
+            Map.of(API_PUBLICATION_PATH_IDENTIFIER, publication.getIdentifier().toString());
+
+        return attempt(() -> new HandlerRequestBuilder<ApiUpdateDoiRequest>(objectMapper)
+            .withBody(updateDoiRequest)
+            .withFeideId(OWNER)
+            .withAccessRight(AccessRight.READ_DOI_REQUEST.toString())
+            .withPathParameters(pathParams)
+            .build())
+            .orElseThrow();
+    }
+
+    private interface RequestInputStream {
+
+        InputStream createRequest(String message, Publication publication);
+    }
+
+    private class InputObjects {
+
+        private final Publication publication;
+        private final String message;
+
+        private InputObjects(Publication publication, String message) {
+            this.publication = publication;
+            this.message = message;
+        }
+
+        public Publication getPublication() {
+            return publication;
+        }
+
+        public String getMessage() {
+            return message;
+        }
     }
 }

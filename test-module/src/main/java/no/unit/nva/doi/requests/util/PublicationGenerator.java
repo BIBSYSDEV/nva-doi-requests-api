@@ -14,7 +14,7 @@ import no.unit.nva.model.PublicationStatus;
 public final class PublicationGenerator {
 
     public static final URI PUBLISHER_ID = URI.create("http://example.org/publisher/1");
-    public static final String OWNER = "owner";
+    public static final String OWNER = "publication@owner.com";
 
     private PublicationGenerator() {
 
