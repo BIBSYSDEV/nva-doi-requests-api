@@ -493,7 +493,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: update-doi-request
-      Handler: no.unit.nva.doi.requests.handler.DoiRequestMessageHandler::handleRequest
+      Handler: no.unit.nva.doi.requests.handlers.DoiRequestMessageHandler::handleRequest
       Runtime: java11
       MemorySize: 1400
       Environment:
