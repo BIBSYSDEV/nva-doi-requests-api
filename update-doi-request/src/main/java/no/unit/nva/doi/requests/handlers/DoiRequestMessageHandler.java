@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 
 public class DoiRequestMessageHandler extends UpdateDoiRequestHandler {
 
+    public static final String NO_MESSAGE_ERROR = "Message missing";
     private final DynamoDbDoiRequestsServiceFactory serviceFactory;
 
     protected DoiRequestMessageHandler(Environment environment,
@@ -45,9 +46,9 @@ public class DoiRequestMessageHandler extends UpdateDoiRequestHandler {
         String userId = getUserName(requestInfo);
         URI publisherId = requestInfo.getCustomerId().map(URI::create).orElse(null);
         Set<AccessRight> accessRights = extractAccessRights(requestInfo);
-        String message = input.getMessage().orElseThrow(()-> new BadRequestException("Message missing"));
+        String message = input.getMessage().orElseThrow(() -> new BadRequestException(NO_MESSAGE_ERROR));
         UUID publicationId = getPublicationIdentifier(requestInfo);
-        UserInstance userInstance = new UserInstance(userId,publisherId,accessRights);
+        UserInstance userInstance = new UserInstance(userId, publisherId, accessRights);
         service.addMessage(publicationId, message, userInstance);
         return null;
     }

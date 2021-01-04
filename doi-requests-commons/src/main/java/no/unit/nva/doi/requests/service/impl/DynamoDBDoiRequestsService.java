@@ -152,11 +152,14 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
 
-        DoiRequest updatedDoiRequest = createUpdatedDoiRequest(publication, apiUpdateDoiRequest, requestedByUsername);
+
+        DoiRequest updatedDoiRequest =
+            doiRequestCloneWithNewStatusAndNewMessage(publication, apiUpdateDoiRequest, requestedByUsername);
 
         replaceDoiRequestInPublication(publication, updatedDoiRequest);
         putItem(publication);
     }
+
 
     @Override
     public void addMessage(UUID publicationIdentifier, String message, UserInstance user)
@@ -227,13 +230,17 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
-    private DoiRequest createUpdatedDoiRequest(Publication publication,
-                                               ApiUpdateDoiRequest apiUpdateDoiRequest,
-                                               String requestedByUsername) throws BadRequestException {
+
+    private DoiRequest doiRequestCloneWithNewStatusAndNewMessage(Publication publication,
+                                                                 ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                 String requestedByUsername
+    ) throws BadRequestException {
+
         Instant currentTime = clockForTimestamps.instant();
 
-        DoiRequest.Builder updatedDoiRequestBuilder = updateDoiRequestStatus(apiUpdateDoiRequest, publication,
-            currentTime);
+        DoiRequest existingDoiRequest = publication.getDoiRequest();
+        DoiRequest.Builder updatedDoiRequestBuilder =
+            copyExistingDoiRequestAndUpdateStatus(existingDoiRequest, apiUpdateDoiRequest, currentTime);
 
         addMessageToNewDoiRequestObject(apiUpdateDoiRequest, requestedByUsername, currentTime,
             updatedDoiRequestBuilder);
@@ -256,6 +263,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .build();
     }
 
+
     private List<DoiRequestMessage> extractExistingMessages(Publication publication) {
         return Optional.ofNullable(publication.getDoiRequest())
             .map(DoiRequest::getMessages)
@@ -273,10 +281,10 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .map(messageText -> createNewDoiRequestMessage(messageText, requestedByUsername, now));
     }
 
-    private DoiRequest.Builder updateDoiRequestStatus(ApiUpdateDoiRequest apiUpdateDoiRequest,
-                                                      Publication publication,
-                                                      Instant now) throws BadRequestException {
-        return Optional.ofNullable(publication.getDoiRequest())
+    private DoiRequest.Builder copyExistingDoiRequestAndUpdateStatus(DoiRequest existingDoiRequest,
+                                                                     ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                     Instant now) throws BadRequestException {
+        return Optional.ofNullable(existingDoiRequest)
             .map(DoiRequest::copy)
             .map(builder -> builder.withStatus(apiUpdateDoiRequest.getDoiRequestStatus()))
             .map(builder -> builder.withModifiedDate(now))
