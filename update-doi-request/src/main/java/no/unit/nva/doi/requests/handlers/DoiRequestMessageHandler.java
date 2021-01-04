@@ -4,6 +4,7 @@ import static java.util.Objects.isNull;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Set;
@@ -17,12 +18,27 @@ import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
+import nva.commons.utils.JacocoGenerated;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DoiRequestMessageHandler extends UpdateDoiRequestHandler<DoiRequestMessageDto> {
 
     public static final String NO_MESSAGE_ERROR = "Message missing";
     private final DynamoDbDoiRequestsServiceFactory serviceFactory;
+    private static  final Logger LOGGER = LoggerFactory.getLogger(DoiRequestMessageHandler.class);
+
+    @JacocoGenerated
+    public DoiRequestMessageHandler(Environment environment){
+        this(environment, defaultStsClient(), defaultServiceFactory(),LOGGER);
+    }
+
+
+    private static DynamoDbDoiRequestsServiceFactory defaultDatabaseServiceFactory(Environment environment) {
+        return new DynamoDbDoiRequestsServiceFactory(environment);
+    }
+
+
 
     protected DoiRequestMessageHandler(Environment environment,
                                        AWSSecurityTokenService stsClient,
