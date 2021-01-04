@@ -38,7 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
@@ -71,7 +70,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
     public static final List<AccessRight> APPROVE_ACCESS_RIGHT = List.of(AccessRight.APPROVE_DOI_REQUEST);
-    public static final String NOT_THE_ONWER = "not_the_onwer";
+    public static final String NOT_THE_OWNER = "not_the_onwer";
     private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
     private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
@@ -325,13 +324,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     @Test
     public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
         throws ApiGatewayException, IOException {
-
-        Publication publication = getPublicationWithDoiRequest(clock);
-        insertPublication(publication);
-        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
         ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setDoiRequestStatus(APPROVED);
-        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER, APPROVE_ACCESS_RIGHT);
+        Publication publication = insertPublicationWithDoiRequest(updateDoiRequest);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
@@ -342,16 +337,25 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
     }
 
-    @Test
-    public void updateDoiRequestPersistsMessageWhenInputContainsMessageAndUserIsAuthorized()
+    private Publication insertPublicationWithDoiRequest(ApiUpdateDoiRequest updateDoiRequest)
         throws JsonProcessingException, ApiGatewayException {
         Publication publication = getPublicationWithDoiRequest(clock);
         insertPublication(publication);
+        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
+
+        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER, APPROVE_ACCESS_RIGHT);
+        return publication;
+    }
+
+    @Test
+    public void updateDoiRequestPersistsMessageWhenInputContainsMessageAndUserIsAuthorized()
+        throws JsonProcessingException, ApiGatewayException {
+        String expectedMessage = "This is the curator's message";
         ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
         updateDoiRequest.setDoiRequestStatus(APPROVED);
-        String expectedMessage = "This is the curator's message";
         updateDoiRequest.setMessage(expectedMessage);
-        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER, APPROVE_ACCESS_RIGHT);
+
+        Publication publication = insertPublicationWithDoiRequest(updateDoiRequest);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
@@ -370,7 +374,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         updateDoiRequest.setDoiRequestStatus(APPROVED);
 
         Executable action = () ->
-            service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_ONWER,
+            service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER,
                 APPROVE_ACCESS_RIGHT);
 
         BadRequestException exception = assertThrows(BadRequestException.class, action);
