@@ -344,16 +344,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
     }
 
-    private Publication insertPublicationAndUpdateDoiRequest(ApiUpdateDoiRequest updateDoiRequest)
-        throws JsonProcessingException, ApiGatewayException {
-        Publication publication = getPublicationWithDoiRequest(clock);
-        insertPublication(publication);
-        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
-
-        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER, APPROVE_ACCESS_RIGHT);
-        return publication;
-    }
-
     @Test
     public void updateDoiRequestPersistsMessageWhenInputContainsMessageAndUserIsAuthorized()
         throws JsonProcessingException, ApiGatewayException {
@@ -412,6 +402,31 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
+    @Test
+    public void addMessageThrowsForbiddenExceptionWhenUserIsNotAuthorizedToAddMessage()
+        throws JsonProcessingException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        String userMesssage = "userMessage";
+        updateDoiRequest.setMessage(userMesssage);
+
+        UserInstance user = new UserInstance(NOT_THE_OWNER, PUBLISHER_ID, Collections.emptySet());
+        Executable action = () -> service.addMessage(publication.getIdentifier(), userMesssage, user);
+
+        assertThrows(ForbiddenException.class, action);
+    }
+
+    private Publication insertPublicationAndUpdateDoiRequest(ApiUpdateDoiRequest updateDoiRequest)
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
+
+        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER, APPROVE_ACCESS_RIGHT);
+        return publication;
+    }
+
     private String authorizedUserSendsMessage(Publication publication, UserInstance user)
         throws JsonProcessingException, ApiGatewayException {
         insertPublication(publication);
@@ -427,21 +442,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         Set<AccessRight> curatorAccessRights = Set.of(APPROVE_DOI_REQUEST, REJECT_DOI_REQUEST);
         UserInstance user = new UserInstance(NOT_THE_OWNER, PUBLISHER_ID, curatorAccessRights);
         return user;
-    }
-
-    @Test
-    public void addMessageThrowsForbiddenExceptionWhenUserIsNotAuthorizedToAddMessage()
-        throws JsonProcessingException {
-        Publication publication = getPublicationWithDoiRequest(clock);
-        insertPublication(publication);
-        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
-        String userMesssage = "userMessage";
-        updateDoiRequest.setMessage(userMesssage);
-
-        UserInstance user = new UserInstance(NOT_THE_OWNER, PUBLISHER_ID, Collections.emptySet());
-        Executable action = () -> service.addMessage(publication.getIdentifier(), userMesssage, user);
-
-        assertThrows(ForbiddenException.class, action);
     }
 
     private String extractMessageFromPublication(Publication publication, String expectedMessage)
