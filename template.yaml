@@ -139,7 +139,7 @@ Resources:
               parameters:
                 - in: path
                   name: publicationIdentifier
-                  description: Publication Id (uuid)
+                  description: Publication Identifier (uuid)
                   required: true
                   schema:
                     type: string
@@ -197,7 +197,7 @@ Resources:
               parameters:
                 - in: path
                   name: publicationIdentifier
-                  description: Publication Id (uuid)
+                  description: Publication Identifier (uuid)
                   required: true
                   schema:
                     type: string
