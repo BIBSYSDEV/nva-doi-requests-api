@@ -35,9 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +45,6 @@ import no.unit.nva.doi.requests.contants.ServiceConstants;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
-import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
-import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
@@ -71,7 +66,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.zalando.problem.Problem;
 
-public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
+public class ApiUpdateDoiRequestHandlerTest extends UpdateDoiTestUtils {
 
     public static final String INVALID_PUBLICATION_IDENTIFIER = "InvalidPublicationId";
     public static final String FAKE_ENV_SCHEMA_AND_HOST = FAKE_API_SCHEME_ENV
@@ -84,22 +79,18 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     private static final String INVALID_USERNAME = "invalidUsername";
     private static final String USERNAME_NOT_IMPORTANT = INVALID_USERNAME;
 
-    private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
-    private final Instant doiRequestCreationTime = Instant.parse("2000-12-03T10:15:30.00Z");
-    private final Instant doiRequestModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
+
 
     private final Environment environment;
-    private final String publicationsTableName;
     private final Context context;
 
     private final FakeStsClient stsClient;
     private DynamoDBDoiRequestsService doiRequestsService;
     private UpdateDoiRequestStatusHandler handler;
-    private Clock mockClock;
+
 
     public ApiUpdateDoiRequestHandlerTest() {
         environment = mockEnvironment();
-        publicationsTableName = environment.readEnv(ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE);
         stsClient = new FakeStsClient();
         context = new FakeContext();
     }
@@ -107,11 +98,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
     @BeforeEach
     public void init() {
         initializeDatabase();
-        mockClock = mock(Clock.class);
-        when(mockClock.instant())
-            .thenReturn(publicationCreationTime)
-            .thenReturn(doiRequestCreationTime)
-            .thenReturn(doiRequestModificationTime);
 
         DynamoDbDoiRequestsServiceFactory doiRequestsServiceFactory = DynamoDbDoiRequestsServiceFactory
             .serviceWithCustomClientWithoutCredentials(client, environment, mockClock);
@@ -262,9 +248,9 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_FORBIDDEN)));
 
-        assertThat(details.getDetail(), is(equalTo("Forbidden")));
-        assertThat(appender.getMessages(),
-            containsString("Missing from requestContext: /authorizer/claims/custom:feideId"));
+        assertThat(details.getDetail(), containsString("Forbidden"));
+
+
     }
 
     @Test
@@ -273,7 +259,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
 
         ApiUpdateDoiRequest updateRequest = createUpdateDoiRequest(APPROVED, null);
 
-        GatewayResponse<Void> response = sendRequest(updateRequest, publication, validUsername(publication),
+        GatewayResponse<Void> response = sendRequest(updateRequest, publication, NOT_THE_PUBLICATION_OWNER,
             APPROVE_DOI_REQUEST);
 
         assertThat(response.getStatusCode(), is(equalTo(HttpStatus.SC_ACCEPTED)));
@@ -378,10 +364,6 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         return new ApiUpdateDoiRequest();
     }
 
-    private Clock fixedClock(Instant instant) {
-        return Clock.fixed(instant, ZoneId.systemDefault());
-    }
-
     private void assertThatProblemDetailsDoesNotRevealSensitiveInformation(Problem details) {
         String errorMessage = details.getDetail();
         assertThat(errorMessage, not(containsString(NOT_THE_PUBLICATION_OWNER)));
@@ -409,7 +391,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
         //cannot be controlled
 
         DoiRequest expectedDoiRequestWithUnsyncedModifiedDate = new DoiRequest.Builder()
-            .withCreatedDate(doiRequestCreationTime)
+            .withCreatedDate(DOI_REQUEST_CREATION_TIME)
             .withStatus(APPROVED)
             .build();
 
@@ -435,25 +417,7 @@ public class ApiUpdateDoiRequestHandlerTest extends DoiRequestsDynamoDBLocal {
             .build();
     }
 
-    private Publication insertPublicationWithDoiRequest(Clock clock)
-        throws com.fasterxml.jackson.core.JsonProcessingException {
-        Publication publication = PublicationGenerator.getPublicationWithDoiRequest(clock)
-            .copy()
-            .withCreatedDate(publicationCreationTime)
-            .build();
-        insertPublication(publicationsTableName, publication);
-        return publication;
-    }
 
-    private Publication insertPublicationWithoutDoiRequest(Clock clock)
-        throws com.fasterxml.jackson.core.JsonProcessingException {
-        Publication publication = PublicationGenerator.getPublicationWithoutDoiRequest(clock)
-            .copy()
-            .withCreatedDate(publicationCreationTime)
-            .build();
-        insertPublication(publicationsTableName, publication);
-        return publication;
-    }
 
     private <T> GatewayResponse<T> sendRequest(ApiUpdateDoiRequest doiRequest,
                                                Publication publication,

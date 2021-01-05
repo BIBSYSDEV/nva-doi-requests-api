@@ -37,6 +37,7 @@ import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestMessage.Builder;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.model.Organization;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
@@ -151,6 +152,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
 
+
         DoiRequest updatedDoiRequest =
             doiRequestCloneWithNewStatusAndNewMessage(publication, apiUpdateDoiRequest, requestedByUsername);
 
@@ -158,20 +160,114 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         putItem(publication);
     }
 
+
+    @Override
+    public void addMessage(UUID publicationIdentifier, String message, UserInstance user)
+        throws ApiGatewayException {
+        Instant now = clockForTimestamps.instant();
+        Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
+        authorizeSendingMessage(publication, user);
+
+        DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, user.getUserId(), now);
+        List<DoiRequestMessage> messages = extractExistingMessages(publication);
+        messages.add(doiRequestMessage);
+        replaceDoiRequestMessageMessageListInPublication(publication, now, messages);
+        putItem(publication);
+    }
+
+    private void authorizeSendingMessage(Publication publication, UserInstance user)
+        throws ForbiddenException {
+        if (userIsNotAuthorizedToSendMessage(publication, user)) {
+            throw new ForbiddenException();
+        }
+    }
+
+    private boolean userIsNotAuthorizedToSendMessage(Publication publication,
+                                                     UserInstance user) {
+        return !(
+            userIsPublicationOwner(publication, user.getUserId())
+                || userHasUpdateDoiRequestRightsForPublication(publication, user)
+            );
+    }
+
+    private boolean userHasUpdateDoiRequestRightsForPublication(Publication publication,
+                                                                UserInstance user) {
+
+        return userHasRightToUpdateDoiRequestStatus(user)
+            && userBelongsToThePublicationsInstitution(publication, user);
+    }
+
+    private boolean userHasRightToUpdateDoiRequestStatus(UserInstance user) {
+        return user.getAccessRights().contains(APPROVE_DOI_REQUEST)
+            && user.getAccessRights().contains(REJECT_DOI_REQUEST);
+    }
+
+    private boolean userBelongsToThePublicationsInstitution(Publication publication, UserInstance user) {
+        URI userInstitution = user.getPublisherId().orElse(null);
+
+        return Optional.ofNullable(publication.getPublisher())
+            .map(Organization::getId)
+            .filter(publicationInstitution -> publicationInstitution.equals(userInstitution))
+            .isPresent();
+    }
+
+    private boolean userIsPublicationOwner(Publication publication, String userId) {
+        return publication.getOwner().equals(userId);
+    }
+
+    private void replaceDoiRequestMessageMessageListInPublication(Publication publication,
+                                                                  Instant now,
+                                                                  List<DoiRequestMessage> messages) {
+        DoiRequest updatedDoiRequest = addMessageToDoiRequest(now, publication, messages);
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(now);
+    }
+
+    private DoiRequest addMessageToDoiRequest(Instant now, Publication publication, List<DoiRequestMessage> messages) {
+        return publication.getDoiRequest().copy()
+            .withMessages(messages)
+            .withModifiedDate(now)
+            .build();
+    }
+
+
     private DoiRequest doiRequestCloneWithNewStatusAndNewMessage(Publication publication,
                                                                  ApiUpdateDoiRequest apiUpdateDoiRequest,
                                                                  String requestedByUsername
     ) throws BadRequestException {
+
         Instant currentTime = clockForTimestamps.instant();
 
         DoiRequest existingDoiRequest = publication.getDoiRequest();
         DoiRequest.Builder updatedDoiRequestBuilder =
             copyExistingDoiRequestAndUpdateStatus(existingDoiRequest, apiUpdateDoiRequest, currentTime);
 
-        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
-            .ifPresent(updatedDoiRequestBuilder::addMessage);
+        addMessageToNewDoiRequestObject(apiUpdateDoiRequest, requestedByUsername, currentTime,
+            updatedDoiRequestBuilder);
 
         return updatedDoiRequestBuilder.build();
+    }
+
+    private void addMessageToNewDoiRequestObject(ApiUpdateDoiRequest apiUpdateDoiRequest, String requestedByUsername,
+                                                 Instant currentTime,
+                                                 DoiRequest.Builder updatedDoiRequestBuilder) {
+        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
+            .ifPresent(updatedDoiRequestBuilder::addMessage);
+    }
+
+    private DoiRequestMessage createNewDoiRequestMessage(String message, String userId, Instant now) {
+        return new Builder()
+            .withAuthor(userId)
+            .withText(message)
+            .withTimestamp(now)
+            .build();
+    }
+
+
+    private List<DoiRequestMessage> extractExistingMessages(Publication publication) {
+        return Optional.ofNullable(publication.getDoiRequest())
+            .map(DoiRequest::getMessages)
+            .orElse(new ArrayList<>());
     }
 
     private void replaceDoiRequestInPublication(Publication publication, DoiRequest updatedDoiRequest) {
@@ -182,11 +278,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     private Optional<DoiRequestMessage> createDoiRequestMessage(ApiUpdateDoiRequest apiUpdateDoiRequest,
                                                                 String requestedByUsername, Instant now) {
         return apiUpdateDoiRequest.getMessage()
-            .map(messageText -> new Builder()
-                .withAuthor(requestedByUsername)
-                .withText(messageText)
-                .withTimestamp(now)
-                .build());
+            .map(messageText -> createNewDoiRequestMessage(messageText, requestedByUsername, now));
     }
 
     private DoiRequest.Builder copyExistingDoiRequestAndUpdateStatus(DoiRequest existingDoiRequest,
@@ -341,11 +433,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private DoiRequestMessage createMessage(String message, String author) {
-        return new DoiRequestMessage.Builder()
-            .withAuthor(author)
-            .withText(message)
-            .withTimestamp(Instant.now(clockForTimestamps))
-            .build();
+        return createNewDoiRequestMessage(message, author, Instant.now(clockForTimestamps));
     }
 
     private void putItem(Publication publication) throws ApiGatewayException {

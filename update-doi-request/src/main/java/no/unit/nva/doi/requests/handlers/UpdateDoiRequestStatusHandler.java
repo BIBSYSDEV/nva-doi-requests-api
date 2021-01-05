@@ -13,10 +13,8 @@ import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService;
 import no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory;
-import no.unit.nva.doi.requests.userdetails.UserDetails;
 import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
-import nva.commons.exceptions.ForbiddenException;
 import nva.commons.handlers.RequestInfo;
 import nva.commons.utils.Environment;
 import nva.commons.utils.JacocoGenerated;
@@ -26,10 +24,8 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateDoiRequestStatusHandler extends DoiRequestAuthorizedHandlerTemplate<ApiUpdateDoiRequest, Void> {
+public class UpdateDoiRequestStatusHandler extends UpdateDoiRequestHandler<ApiUpdateDoiRequest> {
 
-    public static final String INVALID_PUBLICATION_ID_ERROR = "Invalid publication id: ";
-    public static final String API_PUBLICATION_PATH_IDENTIFIER = "publicationIdentifier";
     private static final String LOCATION_TEMPLATE_PUBLICATION = "%s://%s/publication/%s";
 
     private static final Logger logger = LoggerFactory.getLogger(UpdateDoiRequestStatusHandler.class);
@@ -109,19 +105,6 @@ public class UpdateDoiRequestStatusHandler extends DoiRequestAuthorizedHandlerTe
         return String.format(LOCATION_TEMPLATE_PUBLICATION, apiScheme, apiHost, publicationID.toString());
     }
 
-    private UUID getPublicationIdentifier(RequestInfo requestInfo) throws BadRequestException {
-        String publicationIdentifierString = requestInfo.getPathParameter(API_PUBLICATION_PATH_IDENTIFIER);
-        return attempt(() -> UUID.fromString(publicationIdentifierString))
-            .orElseThrow(fail -> new BadRequestException(INVALID_PUBLICATION_ID_ERROR + publicationIdentifierString));
-    }
 
-    private String getUserName(RequestInfo requestInfo) throws ForbiddenException {
-        try {
-            return UserDetails.getUsername(requestInfo);
-        } catch (IllegalArgumentException e) {
-            // IllegalArgumentException: Missing from requestContext: /authorizer/claims/custom:feideId
-            logger.warn(e.getMessage());
-            throw new ForbiddenException();
-        }
-    }
+
 }
