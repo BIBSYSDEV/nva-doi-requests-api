@@ -6,16 +6,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
+import no.unit.nva.doi.requests.service.impl.UserInstance;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
-import nva.commons.exceptions.ForbiddenException;
-import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
 
 public interface DoiRequestsService {
-
-    String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
     List<Publication> findDoiRequestsByStatus(URI publisher, DoiRequestStatus status) throws ApiGatewayException;
 
@@ -26,9 +25,20 @@ public interface DoiRequestsService {
         throws JsonProcessingException, NotFoundException;
 
     void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
-        throws ConflictException, NotFoundException, ForbiddenException;
+        throws ApiGatewayException;
 
-    void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
-                          String requestedByUsername)
-        throws NotFoundException, ForbiddenException;
+    void updateDoiRequest(UUID publicationIdentifier, ApiUpdateDoiRequest requestedStatusChange,
+                          String requestedByUsername, List<AccessRight> userAccessRights)
+        throws ApiGatewayException;
+
+    /**
+     * Adds a message.
+     *
+     * @param publicationIdentifier the publication identifier
+     * @param message               the message.
+     * @param user                  the user details.
+     * @throws ApiGatewayException when a predictable exception happens
+     */
+    void addMessage(UUID publicationIdentifier, String message, UserInstance user)
+        throws ApiGatewayException;
 }

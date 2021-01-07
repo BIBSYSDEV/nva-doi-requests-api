@@ -1,6 +1,8 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static java.util.Objects.nonNull;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.APPROVE_DOI_REQUEST;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.REJECT_DOI_REQUEST;
 import static nva.commons.utils.attempt.Try.attempt;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
@@ -27,13 +29,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
 import no.unit.nva.doi.requests.contants.ServiceConstants;
+import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.service.DoiRequestsService;
 import no.unit.nva.model.DoiRequest;
 import no.unit.nva.model.DoiRequestMessage;
+import no.unit.nva.model.DoiRequestMessage.Builder;
 import no.unit.nva.model.DoiRequestStatus;
+import no.unit.nva.model.Organization;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
 import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
@@ -44,9 +51,12 @@ import nva.commons.utils.attempt.Failure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.GodClass")
+//TODO: Fix GodClass problem (NP-2007)
 public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     public static final String PUBLICATION_ID_HASH_KEY_NAME = "identifier";
+    public static final String DOI_ALREADY_EXISTS_ERROR = "DoiRequest already exists for publication: ";
 
     public static final String PUBLISHER_ID = "publisherId";
     public static final String ERROR_READING_FROM_TABLE = "Error reading from table";
@@ -55,6 +65,11 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         "User with username %s not allowed to create a DoiRequest for publication owned by %s";
     public static final String PUBLICATION_NOT_FOUND_ERROR_MESSAGE = "Could not find publication: ";
     public static final String ACCESS_DENIED_ERROR_MESSAGE = "Status Code: 400; Error Code: AccessDeniedException";
+    public static final String USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST = "User not allowed to approve a DOI request: ";
+    public static final String USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST = "User is not allowed to reject a Doi request";
+
+    public static final String ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST =
+        "You must initiate creation of a DoiRequest before you can update it.";
 
     private final Logger logger = LoggerFactory.getLogger(DynamoDBDoiRequestsService.class);
     private final Clock clockForTimestamps;
@@ -119,24 +134,192 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
 
     @Override
     public void createDoiRequest(CreateDoiRequest createDoiRequest, String username)
-        throws ConflictException, NotFoundException, ForbiddenException {
+        throws ApiGatewayException {
 
         Publication publication = fetchPublicationForUser(createDoiRequest, username);
         verifyThatPublicationHasNoPreviousDoiRequest(publication);
         DoiRequest newDoiRequestEntry = createDoiRequestEntry(createDoiRequest, username);
-        publication.setDoiRequest(newDoiRequestEntry);
-        publication.setModifiedDate(newDoiRequestEntry.getModifiedDate());
+        replaceDoiRequestInPublication(publication, newDoiRequestEntry);
         putItem(publication);
     }
 
     @Override
-    public void updateDoiRequest(UUID publicationIdentifier, DoiRequestStatus requestedStatusChange,
-                                 String requestedByUsername)
-        throws NotFoundException, ForbiddenException {
+    public void updateDoiRequest(UUID publicationIdentifier, ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                 String requestedByUsername, List<AccessRight> userAccessRights)
+        throws ApiGatewayException {
+
+        authorizeChange(apiUpdateDoiRequest.getDoiRequestStatus(), userAccessRights, requestedByUsername);
+
         Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
-        validateUsername(publication, requestedByUsername);
-        publication.updateDoiRequestStatus(requestedStatusChange);
+
+
+        DoiRequest updatedDoiRequest =
+            doiRequestCloneWithNewStatusAndNewMessage(publication, apiUpdateDoiRequest, requestedByUsername);
+
+        replaceDoiRequestInPublication(publication, updatedDoiRequest);
         putItem(publication);
+    }
+
+
+    @Override
+    public void addMessage(UUID publicationIdentifier, String message, UserInstance user)
+        throws ApiGatewayException {
+        Instant now = clockForTimestamps.instant();
+        Publication publication = fetchPublicationByIdentifier(publicationIdentifier);
+        authorizeSendingMessage(publication, user);
+
+        DoiRequestMessage doiRequestMessage = createNewDoiRequestMessage(message, user.getUserId(), now);
+        List<DoiRequestMessage> messages = extractExistingMessages(publication);
+        messages.add(doiRequestMessage);
+        replaceDoiRequestMessageMessageListInPublication(publication, now, messages);
+        putItem(publication);
+    }
+
+    private void authorizeSendingMessage(Publication publication, UserInstance user)
+        throws ForbiddenException {
+        if (userIsNotAuthorizedToSendMessage(publication, user)) {
+            throw new ForbiddenException();
+        }
+    }
+
+    private boolean userIsNotAuthorizedToSendMessage(Publication publication,
+                                                     UserInstance user) {
+        return !(
+            userIsPublicationOwner(publication, user.getUserId())
+                || userHasUpdateDoiRequestRightsForPublication(publication, user)
+            );
+    }
+
+    private boolean userHasUpdateDoiRequestRightsForPublication(Publication publication,
+                                                                UserInstance user) {
+
+        return userHasRightToUpdateDoiRequestStatus(user)
+            && userBelongsToThePublicationsInstitution(publication, user);
+    }
+
+    private boolean userHasRightToUpdateDoiRequestStatus(UserInstance user) {
+        return user.getAccessRights().contains(APPROVE_DOI_REQUEST)
+            && user.getAccessRights().contains(REJECT_DOI_REQUEST);
+    }
+
+    private boolean userBelongsToThePublicationsInstitution(Publication publication, UserInstance user) {
+        URI userInstitution = user.getPublisherId().orElse(null);
+
+        return Optional.ofNullable(publication.getPublisher())
+            .map(Organization::getId)
+            .filter(publicationInstitution -> publicationInstitution.equals(userInstitution))
+            .isPresent();
+    }
+
+    private boolean userIsPublicationOwner(Publication publication, String userId) {
+        return publication.getOwner().equals(userId);
+    }
+
+    private void replaceDoiRequestMessageMessageListInPublication(Publication publication,
+                                                                  Instant now,
+                                                                  List<DoiRequestMessage> messages) {
+        DoiRequest updatedDoiRequest = addMessageToDoiRequest(now, publication, messages);
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(now);
+    }
+
+    private DoiRequest addMessageToDoiRequest(Instant now, Publication publication, List<DoiRequestMessage> messages) {
+        return publication.getDoiRequest().copy()
+            .withMessages(messages)
+            .withModifiedDate(now)
+            .build();
+    }
+
+
+    private DoiRequest doiRequestCloneWithNewStatusAndNewMessage(Publication publication,
+                                                                 ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                 String requestedByUsername
+    ) throws BadRequestException {
+
+        Instant currentTime = clockForTimestamps.instant();
+
+        DoiRequest existingDoiRequest = publication.getDoiRequest();
+        DoiRequest.Builder updatedDoiRequestBuilder =
+            copyExistingDoiRequestAndUpdateStatus(existingDoiRequest, apiUpdateDoiRequest, currentTime);
+
+        addMessageToNewDoiRequestObject(apiUpdateDoiRequest, requestedByUsername, currentTime,
+            updatedDoiRequestBuilder);
+
+        return updatedDoiRequestBuilder.build();
+    }
+
+    private void addMessageToNewDoiRequestObject(ApiUpdateDoiRequest apiUpdateDoiRequest, String requestedByUsername,
+                                                 Instant currentTime,
+                                                 DoiRequest.Builder updatedDoiRequestBuilder) {
+        createDoiRequestMessage(apiUpdateDoiRequest, requestedByUsername, currentTime)
+            .ifPresent(updatedDoiRequestBuilder::addMessage);
+    }
+
+    private DoiRequestMessage createNewDoiRequestMessage(String message, String userId, Instant now) {
+        return new Builder()
+            .withAuthor(userId)
+            .withText(message)
+            .withTimestamp(now)
+            .build();
+    }
+
+
+    private List<DoiRequestMessage> extractExistingMessages(Publication publication) {
+        return Optional.ofNullable(publication.getDoiRequest())
+            .map(DoiRequest::getMessages)
+            .orElse(new ArrayList<>());
+    }
+
+    private void replaceDoiRequestInPublication(Publication publication, DoiRequest updatedDoiRequest) {
+        publication.setDoiRequest(updatedDoiRequest);
+        publication.setModifiedDate(updatedDoiRequest.getModifiedDate());
+    }
+
+    private Optional<DoiRequestMessage> createDoiRequestMessage(ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                String requestedByUsername, Instant now) {
+        return apiUpdateDoiRequest.getMessage()
+            .map(messageText -> createNewDoiRequestMessage(messageText, requestedByUsername, now));
+    }
+
+    private DoiRequest.Builder copyExistingDoiRequestAndUpdateStatus(DoiRequest existingDoiRequest,
+                                                                     ApiUpdateDoiRequest apiUpdateDoiRequest,
+                                                                     Instant now) throws BadRequestException {
+        return Optional.ofNullable(existingDoiRequest)
+            .map(DoiRequest::copy)
+            .map(builder -> builder.withStatus(apiUpdateDoiRequest.getDoiRequestStatus()))
+            .map(builder -> builder.withModifiedDate(now))
+            .orElseThrow(() -> new BadRequestException(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
+    }
+
+    private void authorizeChange(DoiRequestStatus requestedStatusChange,
+                                 List<AccessRight> userAccessRights,
+                                 String username)
+        throws ForbiddenException {
+
+        if (userTriesToApproveDoiRequest(requestedStatusChange)
+            && userDoesNotHaveTheRight(userAccessRights, APPROVE_DOI_REQUEST)) {
+            logger.warn(USER_NOT_ALLOWED_TO_APPROVE_DOI_REQUEST + username);
+            throw new ForbiddenException();
+        }
+
+        if (userTriesToRejectDoiRequest(requestedStatusChange)
+            && userDoesNotHaveTheRight(userAccessRights, REJECT_DOI_REQUEST)) {
+
+            logger.warn(USER_NOT_ALLOWED_TO_REJECT_A_DOI_REQUEST + username);
+            throw new ForbiddenException();
+        }
+    }
+
+    private boolean userTriesToRejectDoiRequest(DoiRequestStatus requestedStatusChange) {
+        return DoiRequestStatus.REJECTED.equals(requestedStatusChange);
+    }
+
+    private boolean userDoesNotHaveTheRight(List<AccessRight> userAccessRights, AccessRight rejectDoiRequest) {
+        return !userAccessRights.contains(rejectDoiRequest);
+    }
+
+    private boolean userTriesToApproveDoiRequest(DoiRequestStatus requestedStatusChange) {
+        return DoiRequestStatus.APPROVED.equals(requestedStatusChange);
     }
 
     private List<Publication> extractMostRecentVersionOfEachPublication(URI publisher) throws ApiGatewayException {
@@ -145,7 +328,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
             .map(this::extractPublications)
             .map(this::filterNotPublishedPublications)
             .map(this::keepMostRecentPublications)
-            .orElseThrow(this::handleErrorFetchingPublications);
+            .orElseThrow(this::handleDynamoDbException);
     }
 
     private List<Publication> filterNotPublishedPublications(List<Publication> list) {
@@ -189,7 +372,7 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
         return doiRequestsIndex.query(querySpec);
     }
 
-    private <T> ApiGatewayException handleErrorFetchingPublications(Failure<T> fail) {
+    private <T> ApiGatewayException handleDynamoDbException(Failure<T> fail) {
         if (isAccessDeniedException(fail.getException())) {
             return new ForbiddenException();
         }
@@ -250,17 +433,14 @@ public class DynamoDBDoiRequestsService implements DoiRequestsService {
     }
 
     private DoiRequestMessage createMessage(String message, String author) {
-        return new DoiRequestMessage.Builder()
-            .withAuthor(author)
-            .withText(message)
-            .withTimestamp(Instant.now(clockForTimestamps))
-            .build();
+        return createNewDoiRequestMessage(message, author, Instant.now(clockForTimestamps));
     }
 
-    private void putItem(Publication publication) {
+    private void putItem(Publication publication) throws ApiGatewayException {
         Item item = publicationToItem(publication);
         PutItemSpec putItemSpec = new PutItemSpec().withItem(item);
-        publicationsTable.putItem(putItemSpec);
+        attempt(() -> publicationsTable.putItem(putItemSpec))
+            .orElseThrow(this::handleDynamoDbException);
     }
 
     private Publication fetchPublicationByIdentifier(UUID publicationIdentifier) throws NotFoundException {

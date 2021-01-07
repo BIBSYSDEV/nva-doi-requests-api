@@ -1,12 +1,17 @@
 package no.unit.nva.doi.requests.service.impl;
 
 import static no.unit.nva.doi.requests.contants.ServiceConstants.PUBLICATIONS_TABLE_NAME_ENV_VARIABLE;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.DOI_ALREADY_EXISTS_ERROR;
+import static no.unit.nva.doi.requests.service.impl.DynamoDBDoiRequestsService.ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST;
 import static no.unit.nva.doi.requests.service.impl.DynamoDbDoiRequestsServiceFactory.EMPTY_CREDENTIALS;
 import static no.unit.nva.doi.requests.util.MockEnvironment.mockEnvironment;
+import static no.unit.nva.doi.requests.util.PublicationGenerator.PUBLISHER_ID;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithDoiRequest;
 import static no.unit.nva.doi.requests.util.PublicationGenerator.getPublicationWithoutDoiRequest;
 import static no.unit.nva.model.DoiRequestStatus.APPROVED;
 import static no.unit.nva.model.DoiRequestStatus.REQUESTED;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.APPROVE_DOI_REQUEST;
+import static no.unit.nva.useraccessmanagement.dao.AccessRight.REJECT_DOI_REQUEST;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
@@ -32,13 +37,16 @@ import java.lang.reflect.Field;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import no.unit.nva.doi.requests.api.model.requests.CreateDoiRequest;
+import no.unit.nva.doi.requests.exception.BadRequestException;
 import no.unit.nva.doi.requests.exception.DynamoDBException;
-import no.unit.nva.doi.requests.service.DoiRequestsService;
+import no.unit.nva.doi.requests.model.ApiUpdateDoiRequest;
 import no.unit.nva.doi.requests.util.DoiRequestsDynamoDBLocal;
 import no.unit.nva.doi.requests.util.PublicationGenerator;
 import no.unit.nva.model.DoiRequest;
@@ -46,6 +54,8 @@ import no.unit.nva.model.DoiRequestMessage;
 import no.unit.nva.model.DoiRequestStatus;
 import no.unit.nva.model.Publication;
 import no.unit.nva.model.PublicationStatus;
+import no.unit.nva.useraccessmanagement.dao.AccessRight;
+import nva.commons.exceptions.ApiGatewayException;
 import nva.commons.exceptions.ForbiddenException;
 import nva.commons.exceptions.commonexceptions.ConflictException;
 import nva.commons.exceptions.commonexceptions.NotFoundException;
@@ -64,6 +74,9 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
     public static final String INVALID_USERNAME = "invalidUsername";
     public static final DoiRequestStatus INITIAL_DOI_REQUEST_STATUS = REQUESTED;
     public static final DoiRequestStatus NEW_DOI_REQUEST_STATUS = APPROVED;
+    public static final List<AccessRight> APPROVE_ACCESS_RIGHT = List.of(APPROVE_DOI_REQUEST);
+    public static final String NOT_THE_OWNER = "not_the_owner";
+
     private final Instant publicationCreationTime = Instant.parse("1900-01-01T10:00:00.00Z");
     private final Instant publicationModificationTime = Instant.parse("2000-12-03T10:15:30.00Z");
     private DynamoDBDoiRequestsService service;
@@ -172,7 +185,6 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(result.isPresent(), is(true));
     }
 
-
     @Test
     public void fetchDoiRequestByPublicationThrowsExceptionWhenIndexSearchFails() {
         Publication publication = getPublicationWithDoiRequest();
@@ -191,7 +203,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestAddsDoiRequestToPublication()
-        throws JsonProcessingException, ConflictException, NotFoundException, ForbiddenException {
+        throws JsonProcessingException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -207,7 +219,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestWithoutMessageDoesNotCreateEmptyMessage()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -221,7 +233,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestSetsModifiedPublicationDateEqualToDoiRequestCreatedAndModifiedDate()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publicationWithoutDoiRequest = getPublicationWithoutDoiRequest(clock);
         insertPublication(publicationWithoutDoiRequest);
 
@@ -240,7 +252,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void createDoiRequestAddsMessageToPublicationsDoiRequest()
-        throws IOException, ConflictException, NotFoundException, ForbiddenException {
+        throws IOException, ApiGatewayException {
         Publication publication = getPublicationWithoutDoiRequest(clock);
         insertPublication(publication);
 
@@ -265,7 +277,7 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
             publication.getOwner());
         ConflictException exception = assertThrows(ConflictException.class, action);
 
-        assertThat(exception.getMessage(), containsString(DoiRequestsService.DOI_ALREADY_EXISTS_ERROR));
+        assertThat(exception.getMessage(), containsString(DOI_ALREADY_EXISTS_ERROR));
     }
 
     @Test
@@ -317,13 +329,11 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
 
     @Test
     public void updateDoiRequestPersistsUpdatedDoiRequestWhenInputIsValidAndUserIsAuthorized()
-        throws NotFoundException, ForbiddenException, IOException {
+        throws ApiGatewayException, IOException {
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
 
-        Publication publication = getPublicationWithDoiRequest(clock);
-        insertPublication(publication);
-        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
-
-        service.updateDoiRequest(publication.getIdentifier(), NEW_DOI_REQUEST_STATUS, publication.getOwner());
+        Publication publication = insertPublicationAndUpdateDoiRequest(updateDoiRequest);
 
         var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
             .orElseThrow();
@@ -332,6 +342,128 @@ public class DynamoDBDoiRequestsServiceTest extends DoiRequestsDynamoDBLocal {
         assertThat(actualDoiRequest.getStatus(), is(equalTo(NEW_DOI_REQUEST_STATUS)));
 
         assertThatModifiedDateIsUpdated(publication, publicationWithDoiRequest);
+    }
+
+    @Test
+    public void updateDoiRequestPersistsMessageWhenInputContainsMessageAndUserIsAuthorized()
+        throws JsonProcessingException, ApiGatewayException {
+        String expectedMessage = "This is the curator's message";
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
+        updateDoiRequest.setMessage(expectedMessage);
+
+        Publication publication = insertPublicationAndUpdateDoiRequest(updateDoiRequest);
+
+        var publicationWithDoiRequest = service.fetchDoiRequestByPublicationIdentifier(publication.getIdentifier())
+            .orElseThrow();
+        DoiRequest actualDoiRequest = publicationWithDoiRequest.getDoiRequest();
+
+        assertThatActualDoiRequestContainsExpectedMessage(actualDoiRequest, expectedMessage);
+    }
+
+    @Test
+    public void updateDoiThrowsBadRequestExceptionWhenPublicationDoesNotContainDoiRequest()
+        throws JsonProcessingException {
+        Publication publication = getPublicationWithoutDoiRequest(clock);
+        insertPublication(publication);
+
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        updateDoiRequest.setDoiRequestStatus(APPROVED);
+
+        Executable action = () ->
+            service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER,
+                APPROVE_ACCESS_RIGHT);
+
+        BadRequestException exception = assertThrows(BadRequestException.class, action);
+
+        assertThat(exception.getMessage(), containsString(ERROR_MESSAGE_UPDATE_DOIREQUEST_MISSING_DOIREQUEST));
+    }
+
+    @Test
+    public void addMessagePersistsMessageToDatabaseWhenUserIsPublicationOwner()
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        final UserInstance user = new UserInstance(publication.getOwner(), PUBLISHER_ID, Collections.emptySet());
+
+        String expectedMessage = authorizedUserSendsMessage(publication, user);
+
+        String actualMessage = extractMessageFromPublication(publication, expectedMessage);
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
+    }
+
+    @Test
+    public void addMessageSavesMessageWhenUserIsCurator()
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        UserInstance user = createCuratorUser();
+        String expectedMessage = authorizedUserSendsMessage(publication, user);
+
+        String actualMessage = extractMessageFromPublication(publication, expectedMessage);
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
+    }
+
+    @Test
+    public void addMessageThrowsForbiddenExceptionWhenUserIsNotAuthorizedToAddMessage()
+        throws JsonProcessingException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        String userMesssage = "userMessage";
+        updateDoiRequest.setMessage(userMesssage);
+
+        UserInstance user = new UserInstance(NOT_THE_OWNER, PUBLISHER_ID, Collections.emptySet());
+        Executable action = () -> service.addMessage(publication.getIdentifier(), userMesssage, user);
+
+        assertThrows(ForbiddenException.class, action);
+    }
+
+    private Publication insertPublicationAndUpdateDoiRequest(ApiUpdateDoiRequest updateDoiRequest)
+        throws JsonProcessingException, ApiGatewayException {
+        Publication publication = getPublicationWithDoiRequest(clock);
+        insertPublication(publication);
+        assertThat(publication.getDoiRequest().getStatus(), is(equalTo(INITIAL_DOI_REQUEST_STATUS)));
+
+        service.updateDoiRequest(publication.getIdentifier(), updateDoiRequest, NOT_THE_OWNER, APPROVE_ACCESS_RIGHT);
+        return publication;
+    }
+
+    private String authorizedUserSendsMessage(Publication publication, UserInstance user)
+        throws JsonProcessingException, ApiGatewayException {
+        insertPublication(publication);
+        ApiUpdateDoiRequest updateDoiRequest = new ApiUpdateDoiRequest();
+        String expectedMessage = "expectedMessage";
+        updateDoiRequest.setMessage(expectedMessage);
+
+        service.addMessage(publication.getIdentifier(), expectedMessage, user);
+        return expectedMessage;
+    }
+
+    private UserInstance createCuratorUser() {
+        Set<AccessRight> curatorAccessRights = Set.of(APPROVE_DOI_REQUEST, REJECT_DOI_REQUEST);
+        UserInstance user = new UserInstance(NOT_THE_OWNER, PUBLISHER_ID, curatorAccessRights);
+        return user;
+    }
+
+    private String extractMessageFromPublication(Publication publication, String expectedMessage)
+        throws NotFoundException {
+        return service.fetchDoiRequestByPublicationIdentifier(
+            publication.getIdentifier())
+            .stream()
+            .map(Publication::getDoiRequest)
+            .map(DoiRequest::getMessages)
+            .flatMap(Collection::stream)
+            .map(DoiRequestMessage::getText)
+            .filter(text -> text.equals(expectedMessage))
+            .collect(SingletonCollector.collect());
+    }
+
+    private void assertThatActualDoiRequestContainsExpectedMessage(DoiRequest actualDoiRequest,
+                                                                   String expectedMessage) {
+        String actualMessage = actualDoiRequest.getMessages().stream()
+            .map(DoiRequestMessage::getText)
+            .filter(message -> message.equals(expectedMessage))
+            .collect(SingletonCollector.collect());
+        assertThat(actualMessage, is(equalTo(expectedMessage)));
     }
 
     private Publication updatedPublication(Publication publication) {
